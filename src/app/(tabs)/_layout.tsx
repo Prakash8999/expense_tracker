@@ -1,51 +1,63 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function TabLayout() {
-  const colors = Colors.light; // Force light mode
+  const c = Colors.light;
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.backgroundElement,
-          borderTopColor: colors.border,
+          backgroundColor: '#FFFFFF',
+          borderTopColor: c.border,
+          borderTopWidth: 0.5,
+          height: 60,
+          paddingBottom: 8,
+          paddingTop: 4,
           elevation: 0,
           shadowOpacity: 0,
         },
-        tabBarActiveTintColor: colors.tint,
-        tabBarInactiveTintColor: colors.tabIconDefault,
+        tabBarActiveTintColor: c.tint,
+        tabBarInactiveTintColor: c.tabIconDefault,
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       }}>
       <Tabs.Screen
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <Ionicons name="home" color={color} size={size} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="ledger"
         options={{
-          title: 'Ledger',
-          tabBarIcon: ({ color, size }) => <Ionicons name="receipt" color={color} size={size} />
+          title: 'Records',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="groups"
+        name="budgets"
         options={{
-          title: 'Groups',
-          tabBarIcon: ({ color, size }) => <Ionicons name="people" color={color} size={size} />
+          title: 'Budgets',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'pie-chart' : 'pie-chart-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="more"
         options={{
-          title: 'Settings',
-          tabBarIcon: ({ color, size }) => <Ionicons name="settings" color={color} size={size} />
+          title: 'More',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
+          ),
         }}
       />
     </Tabs>
