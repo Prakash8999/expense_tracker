@@ -7,7 +7,7 @@ CREATE TABLE `accounts` (
 	`icon` text DEFAULT 'wallet' NOT NULL,
 	`color` text DEFAULT '#6366F1' NOT NULL,
 	`created_at` integer NOT NULL,
-	`is_archived` integer DEFAULT false
+	`is_archived` integer DEFAULT 0
 );
 --> statement-breakpoint
 CREATE TABLE `budgets` (
@@ -27,7 +27,7 @@ CREATE TABLE `categories` (
 	`color` text NOT NULL,
 	`type` text DEFAULT 'expense' NOT NULL,
 	`parent_id` text,
-	`is_default` integer DEFAULT false,
+	`is_default` integer DEFAULT 0,
 	`sort_order` integer DEFAULT 0
 );
 --> statement-breakpoint
@@ -48,7 +48,7 @@ CREATE TABLE `debts` (
 	`date` integer NOT NULL,
 	`due_date` integer,
 	`note` text,
-	`is_settled` integer DEFAULT false,
+	`is_settled` integer DEFAULT 0,
 	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
@@ -87,7 +87,7 @@ CREATE TABLE `group_members` (
 	`id` text PRIMARY KEY NOT NULL,
 	`group_id` text NOT NULL,
 	`name` text NOT NULL,
-	`is_user` integer DEFAULT false
+	`is_user` integer DEFAULT 0
 );
 --> statement-breakpoint
 CREATE TABLE `groups` (
@@ -120,7 +120,7 @@ CREATE TABLE `planned_payments` (
 	`start_date` integer NOT NULL,
 	`next_due_date` integer NOT NULL,
 	`reminder_days` text,
-	`is_active` integer DEFAULT true,
+	`is_active` integer DEFAULT 1,
 	`note` text,
 	`created_at` integer NOT NULL
 );
@@ -135,7 +135,7 @@ CREATE TABLE `shopping_items` (
 	`list_id` text NOT NULL,
 	`name` text NOT NULL,
 	`expected_price` real,
-	`is_checked` integer DEFAULT false,
+	`is_checked` integer DEFAULT 0,
 	`sort_order` integer DEFAULT 0
 );
 --> statement-breakpoint
@@ -143,7 +143,7 @@ CREATE TABLE `shopping_lists` (
 	`id` text PRIMARY KEY NOT NULL,
 	`name` text NOT NULL,
 	`created_at` integer NOT NULL,
-	`is_completed` integer DEFAULT false
+	`is_completed` integer DEFAULT 0
 );
 --> statement-breakpoint
 CREATE TABLE `splits` (
@@ -152,7 +152,7 @@ CREATE TABLE `splits` (
 	`group_id` text NOT NULL,
 	`member_id` text NOT NULL,
 	`amount` real NOT NULL,
-	`is_paid` integer DEFAULT false
+	`is_paid` integer DEFAULT 0
 );
 --> statement-breakpoint
 CREATE TABLE `transactions` (
@@ -165,7 +165,7 @@ CREATE TABLE `transactions` (
 	`date` integer NOT NULL,
 	`note` text,
 	`group_id` text,
-	`is_recurring` integer DEFAULT false,
+	`is_recurring` integer DEFAULT 0,
 	`recurring_id` text,
 	`created_at` integer NOT NULL
 );

@@ -23,6 +23,7 @@ export interface AppState {
 
   // ── App State ─────────────────────────────────
   isLoading: boolean;
+  isInitialized: boolean;
   currency: CurrencyInfo;
   isOnboarded: boolean;
 
@@ -57,6 +58,7 @@ export const useStore = create<AppState>((set, get) => ({
   documents: [],
   investments: [],
   isLoading: true,
+  isInitialized: false,
   currency: detectCurrencyFromLocale(),
   isOnboarded: false,
 
@@ -70,6 +72,7 @@ export const useStore = create<AppState>((set, get) => ({
       const { getCurrencyByCode } = require('../utils/currency');
       set({ currency: getCurrencyByCode(currencyCode) });
     }
+    set({ isInitialized: true });
   },
 
   loadData: async () => {

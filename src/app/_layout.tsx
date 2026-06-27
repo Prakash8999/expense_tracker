@@ -22,7 +22,9 @@ const LightTheme = {
 
 export default function RootLayout() {
   const { isReady, error } = useDatabase();
-  const { isLoading, isOnboarded, loadData, checkOnboarding } = useStore();
+  const checkOnboarding = useStore((s) => s.checkOnboarding);
+  const loadData = useStore((s) => s.loadData);
+  const isInitialized = useStore((s) => s.isInitialized);
 
   useEffect(() => {
     if (isReady) {
@@ -30,7 +32,7 @@ export default function RootLayout() {
     }
   }, [isReady]);
 
-  if (!isReady || isLoading) {
+  if (!isReady || !isInitialized) {
     return (
       <SafeAreaProvider>
         <View style={styles.loadingContainer}>
@@ -47,22 +49,16 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={LightTheme}>
         <Stack screenOptions={{ headerShown: false }}>
-          {!isOnboarded ? (
-            <Stack.Screen name="onboarding" />
-          ) : (
-            <>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="add-transaction" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="manage-categories" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-budget" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-goal" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-planned-payment" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-debt" options={{ presentation: 'modal' }} />
-              <Stack.Screen name="add-shopping-list" options={{ presentation: 'modal' }} />
-            </>
-          )}
-          <Stack.Screen name="+not-found" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="add-transaction" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="manage-categories" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-account" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-budget" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-goal" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-planned-payment" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-debt" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="add-shopping-list" options={{ presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
       <StatusBar style="dark" />
