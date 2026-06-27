@@ -121,17 +121,35 @@ export async function seedDefaultCategories() {
   if (existing.length > 0) return;
 
   const allDefaults = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
-  for (let i = 0; i < allDefaults.length; i++) {
-    const cat = allDefaults[i];
+  let sortOrder = 0;
+
+  for (const parent of allDefaults) {
+    const parentId = uuid();
+    // Insert Parent
     await db.insert(categories).values({
-      id: uuid(),
-      name: cat.name,
-      icon: cat.icon,
-      color: cat.color,
-      type: cat.type,
+      id: parentId,
+      name: parent.name,
+      icon: parent.icon,
+      color: parent.color,
+      type: parent.type,
+      parentId: null,
       isDefault: true,
-      sortOrder: i,
+      sortOrder: sortOrder++,
     });
+
+    // Insert Subcategories
+    for (const sub of parent.subcategories) {
+      await db.insert(categories).values({
+        id: uuid(),
+        name: sub.name,
+        icon: sub.icon,
+        color: parent.color, // Inherit parent color
+        type: parent.type,
+        parentId: parentId,
+        isDefault: true,
+        sortOrder: sortOrder++,
+      });
+    }
   }
 }
 

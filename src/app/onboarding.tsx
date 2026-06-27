@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList, TextInput,
   KeyboardAvoidingView, Platform, ScrollView,
@@ -22,10 +22,16 @@ const ACCOUNT_TYPES = [
 type Step = 'currency' | 'accounts' | 'done';
 
 export default function OnboardingScreen() {
-  const { currency, setCurrency, setOnboarded, loadData } = useStore();
+  const { currency, setCurrency, setOnboarded, loadData, isOnboarded } = useStore();
   const [step, setStep] = useState<Step>('currency');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurrency, setSelectedCurrency] = useState<CurrencyInfo>(currency);
+
+  useEffect(() => {
+    if (isOnboarded) {
+      router.replace('/(tabs)');
+    }
+  }, [isOnboarded]);
 
   // Account creation
   const [accountName, setAccountName] = useState('');

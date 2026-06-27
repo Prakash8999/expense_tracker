@@ -65,9 +65,13 @@ export const useStore = create<AppState>((set, get) => ({
   checkOnboarding: async () => {
     const onboarded = await getSetting('onboarded');
     const currencyCode = await getSetting('currency');
-    if (onboarded === 'true') {
+    const existingAccounts = await getAccounts();
+    
+    // Auto-bypass onboarding if they already have data (in case they closed app mid-onboarding)
+    if (onboarded === 'true' || currencyCode || existingAccounts.length > 0) {
       set({ isOnboarded: true });
     }
+    
     if (currencyCode) {
       const { getCurrencyByCode } = require('../utils/currency');
       set({ currency: getCurrencyByCode(currencyCode) });
