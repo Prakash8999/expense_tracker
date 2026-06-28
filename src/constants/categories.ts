@@ -102,6 +102,16 @@ export const DEFAULT_EXPENSE_CATEGORIES: DefaultParentCategory[] = [
     ]
   },
   {
+    name: 'Investments & Savings', icon: 'trending-up', color: '#10B981', type: 'expense',
+    subcategories: [
+      { name: 'Goals', icon: 'flag' },
+      { name: 'Stocks', icon: 'stats-chart' },
+      { name: 'Crypto', icon: 'logo-bitcoin' },
+      { name: 'Mutual Funds', icon: 'pie-chart' },
+      { name: 'Emergency Fund', icon: 'shield-checkmark' },
+    ]
+  },
+  {
     name: 'Education', icon: 'school', color: '#64B5F6', type: 'expense',
     subcategories: [
       { name: 'Tuition', icon: 'school' },

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Alert, KeyboardAvoidingView, Platform, Modal, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -14,6 +14,9 @@ export default function AddGoalScreen() {
   const { currency, loadGoals } = useStore();
   const [name, setName] = useState('');
   const [target, setTarget] = useState('');
+  const [currentAmount, setCurrentAmount] = useState('');
+  const [targetDate, setTargetDate] = useState<number | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [note, setNote] = useState('');
   const [selectedIcon, setSelectedIcon] = useState('flag');
   const [selectedColor, setSelectedColor] = useState('#6366F1');
@@ -22,9 +25,33 @@ export default function AddGoalScreen() {
     if (!name.trim()) { Alert.alert('Error', 'Enter a goal name.'); return; }
     const amt = parseFloat(target);
     if (!amt || amt <= 0) { Alert.alert('Error', 'Enter a valid target amount.'); return; }
-    await addGoal({ name: name.trim(), targetAmount: amt, icon: selectedIcon, color: selectedColor, note: note.trim() || undefined });
+    const curAmt = parseFloat(currentAmount) || 0;
+    
+    await addGoal({ 
+      name: name.trim(), 
+      targetAmount: amt, 
+      currentAmount: curAmt,
+      targetDate: targetDate || undefined,
+      icon: selectedIcon, 
+      color: selectedColor, 
+      note: note.trim() || undefined 
+    });
+    
     await loadGoals();
     router.back();
+  };
+
+  const getTargetDateLabel = () => {
+    if (!targetDate) return 'Set Target Date (Optional)';
+    const d = new Date(targetDate);
+    return `Target: ${d.toLocaleDateString('default', { month: 'long', year: 'numeric' })}`;
+  };
+
+  const setDateOption = (months: number) => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + months);
+    setTargetDate(d.getTime());
+    setShowDatePicker(false);
   };
 
   return (
@@ -46,8 +73,20 @@ export default function AddGoalScreen() {
           </View>
 
           <TextInput style={styles.input} placeholder="Goal Name (e.g. New Car)" placeholderTextColor="#94A3B8" value={name} onChangeText={setName} />
-          <TextInput style={styles.input} placeholder={`Target Amount (${currency.symbol})`} placeholderTextColor="#94A3B8" keyboardType="decimal-pad" value={target} onChangeText={setTarget} />
-          <TextInput style={[styles.input, { minHeight: 56 }]} placeholder="Note (optional)" placeholderTextColor="#94A3B8" value={note} onChangeText={setNote} multiline />
+          
+          <View style={styles.rowInputs}>
+            <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder={`Target (${currency.symbol})`} placeholderTextColor="#94A3B8" keyboardType="decimal-pad" value={target} onChangeText={setTarget} />
+            <TextInput style={[styles.input, { flex: 1, marginBottom: 0 }]} placeholder={`Starting (${currency.symbol})`} placeholderTextColor="#94A3B8" keyboardType="decimal-pad" value={currentAmount} onChangeText={setCurrentAmount} />
+          </View>
+
+          <TouchableOpacity style={styles.dateSelector} onPress={() => setShowDatePicker(true)}>
+            <Ionicons name="calendar-outline" size={20} color={targetDate ? Colors.light.tint : '#94A3B8'} />
+            <Text style={[styles.dateSelectorText, targetDate ? { color: Colors.light.text, fontWeight: '600' as const } : null]}>
+              {getTargetDateLabel()}
+            </Text>
+          </TouchableOpacity>
+
+          <TextInput style={[styles.input, { minHeight: 56, marginTop: 14 }]} placeholder="Note (optional)" placeholderTextColor="#94A3B8" value={note} onChangeText={setNote} multiline />
 
           <Text style={styles.label}>Icon</Text>
           <View style={styles.iconGrid}>
@@ -67,6 +106,33 @@ export default function AddGoalScreen() {
           <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Target Date Modal */}
+      <Modal visible={showDatePicker} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>When do you need it?</Text>
+              
+              <TouchableOpacity style={styles.modalOption} onPress={() => setDateOption(3)}>
+                <Text style={styles.modalOptionText}>In 3 Months</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => setDateOption(6)}>
+                <Text style={styles.modalOptionText}>In 6 Months</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => setDateOption(12)}>
+                <Text style={styles.modalOptionText}>In 1 Year</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => setDateOption(24)}>
+                <Text style={styles.modalOptionText}>In 2 Years</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalOption} onPress={() => { setTargetDate(null); setShowDatePicker(false); }}>
+                <Text style={[styles.modalOptionText, { color: '#EF5350' }]}>No Target Date</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -82,10 +148,19 @@ const styles = StyleSheet.create({
   previewName: { fontSize: 20, fontWeight: '700', color: Colors.light.text },
   previewTarget: { fontSize: 14, color: '#94A3B8', marginTop: 4 },
   input: { backgroundColor: '#FFF', borderRadius: 14, padding: 16, fontSize: 16, color: Colors.light.text, marginBottom: 14, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  rowInputs: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+  dateSelector: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', borderRadius: 14, padding: 16, gap: 10, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  dateSelectorText: { fontSize: 16, color: '#94A3B8' },
   label: { fontSize: 15, fontWeight: '600', color: Colors.light.textSecondary, marginBottom: 12, marginTop: 4 },
   iconGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   iconItem: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF', borderWidth: 2, borderColor: '#F1F5F9' },
   colorGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   colorItem: { width: 38, height: 38, borderRadius: 19, borderWidth: 3, borderColor: 'transparent' },
   colorSelected: { borderColor: '#0F172A', transform: [{ scale: 1.15 }] },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContent: { backgroundColor: '#FFF', width: '100%', borderRadius: 20, padding: 20, elevation: 5, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 } },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.light.text, marginBottom: 16, textAlign: 'center' },
+  modalOption: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', alignItems: 'center' },
+  modalOptionText: { fontSize: 16, fontWeight: '600', color: Colors.light.tint },
 });

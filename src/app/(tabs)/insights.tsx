@@ -3,7 +3,7 @@ import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useMemo, useState, useRef, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -27,20 +27,22 @@ type TypeFilter = "both" | "expense" | "income";
 function formatCompact(val: number, currencyCode: string) {
   try {
     let num = val;
-    let suffix = '';
+    let suffix = "";
     if (val >= 1000000) {
       num = val / 1000000;
-      suffix = 'M';
+      suffix = "M";
     } else if (val >= 1000) {
       num = val / 1000;
-      suffix = 'K';
+      suffix = "K";
     }
-    
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: currencyCode,
-      maximumFractionDigits: suffix ? 1 : 0,
-    }).format(num) + suffix;
+
+    return (
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: currencyCode,
+        maximumFractionDigits: suffix ? 1 : 0,
+      }).format(num) + suffix
+    );
   } catch {
     return `${val}`;
   }
@@ -432,7 +434,13 @@ export default function InsightsScreen() {
 
                 {/* Custom Dynamic Chart */}
                 <View style={styles.chartCard}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                    }}
+                  >
                     <View style={{ flex: 1, paddingRight: 8 }}>
                       <Text style={styles.chartTitle}>
                         {timeFilter === "day"
@@ -451,20 +459,28 @@ export default function InsightsScreen() {
                           ` • ${new Date(
                             new Date().getFullYear(),
                             new Date().getMonth(),
-                            new Date().getDate() - 29
-                          ).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date().toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric", year: "numeric" }
-                          )}`}
+                            new Date().getDate() - 29,
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })} - ${new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}`}
                         {timeFilter === "week" &&
                           ` • ${new Date(
                             new Date().getFullYear(),
                             new Date().getMonth(),
-                            new Date().getDate() - 6
-                          ).toLocaleDateString("en-US", { month: "short", day: "numeric" })} - ${new Date().toLocaleDateString(
-                            "en-US",
-                            { month: "short", day: "numeric", year: "numeric" }
-                          )}`}
+                            new Date().getDate() - 6,
+                          ).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                          })} - ${new Date().toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}`}
                         {timeFilter === "day" &&
                           ` • ${new Date().toLocaleDateString("en-US", {
                             month: "long",
@@ -473,18 +489,40 @@ export default function InsightsScreen() {
                           })}`}
                       </Text>
                     </View>
-                    
+
                     {/* Scroll Controls */}
-                    <View style={{ flexDirection: 'row', gap: 6, marginTop: -2 }}>
-                      <TouchableOpacity style={styles.scrollControlBtn} onPress={() => {
-                        chartScrollRef.current?.scrollTo({ x: Math.max(0, scrollX - 180), animated: true });
-                      }}>
-                        <Ionicons name="chevron-back" size={20} color="#64748B" />
+                    <View
+                      style={{ flexDirection: "row", gap: 6, marginTop: -2 }}
+                    >
+                      <TouchableOpacity
+                        style={styles.scrollControlBtn}
+                        onPress={() => {
+                          chartScrollRef.current?.scrollTo({
+                            x: Math.max(0, scrollX - 180),
+                            animated: true,
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={20}
+                          color="#64748B"
+                        />
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.scrollControlBtn} onPress={() => {
-                        chartScrollRef.current?.scrollTo({ x: scrollX + 180, animated: true });
-                      }}>
-                        <Ionicons name="chevron-forward" size={20} color="#64748B" />
+                      <TouchableOpacity
+                        style={styles.scrollControlBtn}
+                        onPress={() => {
+                          chartScrollRef.current?.scrollTo({
+                            x: scrollX + 180,
+                            animated: true,
+                          });
+                        }}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color="#64748B"
+                        />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -525,7 +563,9 @@ export default function InsightsScreen() {
                         showsHorizontalScrollIndicator={false}
                         style={{ flex: 1 }}
                         contentContainerStyle={styles.chartScrollContent}
-                        onScroll={(e) => setScrollX(e.nativeEvent.contentOffset.x)}
+                        onScroll={(e) =>
+                          setScrollX(e.nativeEvent.contentOffset.x)
+                        }
                         scrollEventThrottle={16}
                       >
                         {chartData.map((d, i) => {
@@ -851,13 +891,29 @@ export default function InsightsScreen() {
             <View style={styles.detailModalHeader}>
               <View>
                 <Text style={styles.detailModalTitle}>
-                  {timeFilter === 'day' 
-                    ? selectedChartItem?.label 
-                    : selectedChartItem ? new Date(Number(selectedChartItem.id)).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : ''}
+                  {timeFilter === "day"
+                    ? selectedChartItem?.label
+                    : selectedChartItem
+                      ? new Date(
+                          Number(selectedChartItem.id),
+                        ).toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                          year: "numeric",
+                        })
+                      : ""}
                 </Text>
-                {timeFilter === 'day' && (
-                  <Text style={{ fontSize: 13, color: '#94A3B8', marginTop: 2 }}>
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                {timeFilter === "day" && (
+                  <Text
+                    style={{ fontSize: 13, color: "#94A3B8", marginTop: 2 }}
+                  >
+                    {new Date().toLocaleDateString("en-US", {
+                      weekday: "long",
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
                   </Text>
                 )}
               </View>
@@ -865,62 +921,113 @@ export default function InsightsScreen() {
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
-            
+
             <View style={styles.detailModalSummary}>
               <View style={styles.detailSummaryBox}>
                 <Text style={styles.detailSummaryLabel}>Expense</Text>
-                <Text style={[styles.detailSummaryAmt, { color: '#EF5350' }]}>
-                  {formatCurrency(selectedChartItem?.expense || 0, currency.code)}
+                <Text style={[styles.detailSummaryAmt, { color: "#EF5350" }]}>
+                  {formatCurrency(
+                    selectedChartItem?.expense || 0,
+                    currency.code,
+                  )}
                 </Text>
               </View>
               <View style={styles.detailSummaryBox}>
                 <Text style={styles.detailSummaryLabel}>Income</Text>
-                <Text style={[styles.detailSummaryAmt, { color: '#66BB6A' }]}>
-                  {formatCurrency(selectedChartItem?.income || 0, currency.code)}
+                <Text style={[styles.detailSummaryAmt, { color: "#66BB6A" }]}>
+                  {formatCurrency(
+                    selectedChartItem?.income || 0,
+                    currency.code,
+                  )}
                 </Text>
               </View>
             </View>
-            
+
             <Text style={styles.detailModalSubTitle}>Transactions</Text>
-            <ScrollView style={styles.detailTxnList} showsVerticalScrollIndicator={false}>
+            <ScrollView
+              style={styles.detailTxnList}
+              showsVerticalScrollIndicator={false}
+            >
               {(() => {
                 if (!selectedChartItem) return null;
-                
+
                 let txnsForBar = [];
-                if (timeFilter === 'day') {
-                  const startOfToday = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+                if (timeFilter === "day") {
+                  const startOfToday = new Date(
+                    new Date().getFullYear(),
+                    new Date().getMonth(),
+                    new Date().getDate(),
+                  ).getTime();
                   const endOfToday = startOfToday + 86400000;
-                  txnsForBar = transactions.filter((t: any) => 
-                    t.date >= startOfToday && t.date < endOfToday && 
-                    (t.categoryId === selectedChartItem.id || (!t.categoryId && selectedChartItem.id === 'other')) &&
-                    t.type !== 'transfer'
+                  txnsForBar = transactions.filter(
+                    (t: any) =>
+                      t.date >= startOfToday &&
+                      t.date < endOfToday &&
+                      (t.categoryId === selectedChartItem.id ||
+                        (!t.categoryId && selectedChartItem.id === "other")) &&
+                      t.type !== "transfer",
                   );
                 } else {
                   const ts = Number(selectedChartItem.id);
                   const endTs = ts + 86400000;
-                  txnsForBar = transactions.filter((t: any) => t.date >= ts && t.date < endTs && t.type !== 'transfer');
+                  txnsForBar = transactions.filter(
+                    (t: any) =>
+                      t.date >= ts && t.date < endTs && t.type !== "transfer",
+                  );
                 }
-                
+
                 if (txnsForBar.length === 0) {
-                  return <Text style={styles.detailEmptyText}>No transactions found.</Text>;
+                  return (
+                    <Text style={styles.detailEmptyText}>
+                      No transactions found.
+                    </Text>
+                  );
                 }
-                
+
                 return txnsForBar.map((t: any) => {
-                  const cat = categories.find((c: any) => c.id === t.categoryId);
+                  const cat = categories.find(
+                    (c: any) => c.id === t.categoryId,
+                  );
                   return (
                     <View key={t.id} style={styles.detailTxnItem}>
-                      <View style={[styles.detailTxnIcon, { backgroundColor: (cat?.color || Colors.light.tint) + '20' }]}>
-                        <Ionicons name={(cat?.icon || 'list') as any} size={20} color={cat?.color || Colors.light.tint} />
+                      <View
+                        style={[
+                          styles.detailTxnIcon,
+                          {
+                            backgroundColor:
+                              (cat?.color || Colors.light.tint) + "20",
+                          },
+                        ]}
+                      >
+                        <Ionicons
+                          name={(cat?.icon || "list") as any}
+                          size={20}
+                          color={cat?.color || Colors.light.tint}
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.detailTxnName}>{cat?.name || 'Uncategorized'}</Text>
+                        <Text style={styles.detailTxnName}>
+                          {cat?.name || "Uncategorized"}
+                        </Text>
                         <Text style={styles.detailTxnNote}>
-                          {new Date(t.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
-                          {t.note ? ` • ${t.note}` : ''}
+                          {new Date(t.date).toLocaleTimeString("en-US", {
+                            hour: "numeric",
+                            minute: "2-digit",
+                            hour12: true,
+                          })}
+                          {t.note ? ` • ${t.note}` : ""}
                         </Text>
                       </View>
-                      <Text style={[styles.detailTxnAmt, { color: t.type === 'expense' ? '#EF5350' : '#66BB6A' }]}>
-                        {t.type === 'expense' ? '-' : '+'}{formatCurrency(t.amount, currency.code)}
+                      <Text
+                        style={[
+                          styles.detailTxnAmt,
+                          {
+                            color: t.type === "expense" ? "#EF5350" : "#66BB6A",
+                          },
+                        ]}
+                      >
+                        {t.type === "expense" ? "-" : "+"}
+                        {formatCurrency(t.amount, currency.code)}
                       </Text>
                     </View>
                   );
@@ -1028,7 +1135,11 @@ function GoalCard({ g, currency }: { g: any; currency: any }) {
     ? Math.max(0, Math.ceil((g.targetDate - Date.now()) / 86400000))
     : null;
   return (
-    <View style={styles.goalCard}>
+    <TouchableOpacity
+      style={styles.goalCard}
+      activeOpacity={0.8}
+      onPress={() => router.push(`/goal-details/${g.id}` as any)}
+    >
       <View style={styles.goalHeader}>
         <View style={[styles.goalIcon, { backgroundColor: g.color + "20" }]}>
           <Ionicons name={g.icon as any} size={24} color={g.color} />
@@ -1062,7 +1173,7 @@ function GoalCard({ g, currency }: { g: any; currency: any }) {
         </Text>
       </View>
       {g.note && <Text style={styles.goalNote}>{g.note}</Text>}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -1483,29 +1594,62 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   detailModalContent: {
-    backgroundColor: '#FFF',
-    width: '100%',
-    height: '75%',
+    backgroundColor: "#FFF",
+    width: "100%",
+    height: "75%",
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
     elevation: 10,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOpacity: 0.2,
     shadowRadius: 10,
   },
-  detailModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  detailModalTitle: { fontSize: 20, fontWeight: '700', color: Colors.light.text },
-  detailModalSummary: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  detailSummaryBox: { flex: 1, backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, alignItems: 'center' },
-  detailSummaryLabel: { fontSize: 13, color: '#64748B', marginBottom: 6 },
-  detailSummaryAmt: { fontSize: 18, fontWeight: '800' },
-  detailModalSubTitle: { fontSize: 16, fontWeight: '700', color: Colors.light.text, marginBottom: 12 },
+  detailModalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  detailModalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: Colors.light.text,
+  },
+  detailModalSummary: { flexDirection: "row", gap: 12, marginBottom: 24 },
+  detailSummaryBox: {
+    flex: 1,
+    backgroundColor: "#F8FAFC",
+    padding: 16,
+    borderRadius: 16,
+    alignItems: "center",
+  },
+  detailSummaryLabel: { fontSize: 13, color: "#64748B", marginBottom: 6 },
+  detailSummaryAmt: { fontSize: 18, fontWeight: "800" },
+  detailModalSubTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: Colors.light.text,
+    marginBottom: 12,
+  },
   detailTxnList: { flex: 1 },
-  detailEmptyText: { color: '#94A3B8', textAlign: 'center', marginTop: 20 },
-  detailTxnItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  detailTxnIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  detailTxnName: { fontSize: 15, fontWeight: '600', color: Colors.light.text },
-  detailTxnNote: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
-  detailTxnAmt: { fontSize: 15, fontWeight: '700' },
+  detailEmptyText: { color: "#94A3B8", textAlign: "center", marginTop: 20 },
+  detailTxnItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+  },
+  detailTxnIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  detailTxnName: { fontSize: 15, fontWeight: "600", color: Colors.light.text },
+  detailTxnNote: { fontSize: 13, color: "#94A3B8", marginTop: 2 },
+  detailTxnAmt: { fontSize: 15, fontWeight: "700" },
 });

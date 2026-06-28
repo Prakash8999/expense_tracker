@@ -118,12 +118,45 @@ export async function deleteCategory(id: string) {
 
 export async function seedDefaultCategories() {
   const existing = await db.select().from(categories);
-  if (existing.length > 0) return;
+
+  // Self-healing: Remove accidental duplicates caused by React Strict Mode race conditions
+  const parentMap = new Map();
+  for (const c of existing) {
+    if (!c.parentId) {
+      if (parentMap.has(c.name)) {
+        // It's a duplicate. Delete it and its children.
+        await db.delete(categories).where(eq(categories.parentId, c.id));
+        await db.delete(categories).where(eq(categories.id, c.id));
+      } else {
+        parentMap.set(c.name, c.id);
+      }
+    }
+  }
+
+  // Refetch existing after cleanup
+  const cleanedExisting = await db.select().from(categories);
 
   const allDefaults = [...DEFAULT_EXPENSE_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES];
-  let sortOrder = 0;
+  let sortOrder = cleanedExisting.length > 0 ? cleanedExisting.length : 0;
 
   for (const parent of allDefaults) {
+    // Check if this parent category already exists in the DB
+    const parentExists = cleanedExisting.find(c => c.name === parent.name && !c.parentId);
+    if (parentExists) {
+      // Ensure its subcategories exist too
+      let subSort = 0;
+      for (const sub of parent.subcategories) {
+        const subExists = cleanedExisting.find(c => c.name === sub.name && c.parentId === parentExists.id);
+        if (!subExists) {
+          await db.insert(categories).values({
+            id: uuid(), name: sub.name, icon: sub.icon, color: parent.color, type: parent.type,
+            parentId: parentExists.id, isDefault: true, sortOrder: subSort++,
+          });
+        }
+      }
+      continue;
+    }
+
     const parentId = uuid();
     // Insert Parent
     await db.insert(categories).values({
@@ -288,8 +321,13 @@ export async function getGoals() {
   return db.select().from(goals);
 }
 
+export async function getGoalById(id: string) {
+  const rows = await db.select().from(goals).where(eq(goals.id, id));
+  return rows[0] || null;
+}
+
 export async function addGoal(data: {
-  name: string; targetAmount: number; targetDate?: number;
+  name: string; targetAmount: number; targetDate?: number; currentAmount?: number;
   icon: string; color: string; note?: string;
 }) {
   const id = uuid();
@@ -297,13 +335,20 @@ export async function addGoal(data: {
     id,
     name: data.name,
     targetAmount: data.targetAmount,
-    currentAmount: 0,
+    currentAmount: data.currentAmount || 0,
     targetDate: data.targetDate || null,
     icon: data.icon,
     color: data.color,
     note: data.note || null,
     createdAt: now(),
   });
+
+  if (data.currentAmount && data.currentAmount > 0) {
+    await db.insert(goalContributions).values({ 
+      id: uuid(), goalId: id, amount: data.currentAmount, date: now(), note: 'Starting balance' 
+    });
+  }
+
   return id;
 }
 

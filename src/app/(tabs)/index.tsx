@@ -206,7 +206,7 @@ export default function DashboardScreen() {
               <Text style={styles.emptySubtext}>Tap the + button to add your first transaction</Text>
             </View>
           ) : (
-            recentTxns.map((txn: any) => {
+            recentTxns.slice(0, 10).map((txn: any) => {
               const cat = getCategoryForTxn(txn);
               return (
                 <View key={txn.id} style={styles.txnRow}>
