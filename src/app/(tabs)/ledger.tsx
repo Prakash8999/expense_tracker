@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SectionList,
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, SectionList, Platform, Modal
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '@/store/useStore';
@@ -15,6 +16,7 @@ const TIMEFRAMES = [
   { label: '6 Months', days: 180 },
   { label: '1 Year', days: 365 },
   { label: 'All', days: 0 },
+  { label: 'Custom', days: -1 },
 ];
 
 const TYPE_FILTERS = ['All', 'Expense', 'Income', 'Transfer'];
@@ -24,7 +26,12 @@ export default function LedgerScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTimeframe, setSelectedTimeframe] = useState(1); // 1 Month
   const [selectedType, setSelectedType] = useState('All');
-  const [showFilters, setShowFilters] = useState(false);
+  
+  // Custom Date State
+  const [customStart, setCustomStart] = useState<Date>(new Date(Date.now() - 30 * 86400000));
+  const [customEnd, setCustomEnd] = useState<Date>(new Date());
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
 
   const filteredTxns = useMemo(() => {
     let result = [...transactions];
@@ -34,6 +41,11 @@ export default function LedgerScreen() {
     if (tf.days > 0) {
       const cutoff = Date.now() - tf.days * 86400000;
       result = result.filter((t: any) => t.date >= cutoff);
+    } else if (tf.days === -1) {
+      // Custom Range
+      const start = customStart.setHours(0,0,0,0);
+      const end = customEnd.setHours(23,59,59,999);
+      result = result.filter((t: any) => t.date >= start && t.date <= end);
     }
 
     // Type filter
@@ -53,7 +65,7 @@ export default function LedgerScreen() {
     }
 
     return result;
-  }, [transactions, selectedTimeframe, selectedType, searchQuery, categories]);
+  }, [transactions, selectedTimeframe, selectedType, searchQuery, categories, customStart, customEnd]);
 
   // Group by date
   const sections = useMemo(() => {
@@ -91,9 +103,7 @@ export default function LedgerScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Records</Text>
-        <TouchableOpacity onPress={() => setShowFilters(!showFilters)}>
-          <Ionicons name={showFilters ? 'options' : 'options-outline'} size={24} color={Colors.light.tint} />
-        </TouchableOpacity>
+        <Ionicons name="funnel-outline" size={24} color={Colors.light.tint} />
       </View>
 
       {/* Search */}
@@ -114,21 +124,23 @@ export default function LedgerScreen() {
       </View>
 
       {/* Timeframe */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.timeframeRow} contentContainerStyle={{ paddingHorizontal: 20 }}>
-        {TIMEFRAMES.map((tf, i) => (
-          <TouchableOpacity
-            key={tf.label}
-            style={[styles.tfChip, selectedTimeframe === i && styles.tfChipActive]}
-            onPress={() => setSelectedTimeframe(i)}
-          >
-            <Text style={[styles.tfChipText, selectedTimeframe === i && styles.tfChipTextActive]}>{tf.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      <View style={styles.filterWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ paddingHorizontal: 20 }}>
+          {TIMEFRAMES.map((tf, i) => (
+            <TouchableOpacity
+              key={tf.label}
+              style={[styles.tfChip, selectedTimeframe === i && styles.tfChipActive]}
+              onPress={() => setSelectedTimeframe(i)}
+            >
+              <Text style={[styles.tfChipText, selectedTimeframe === i && styles.tfChipTextActive]}>{tf.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
 
       {/* Type Filter */}
-      {showFilters && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.typeRow} contentContainerStyle={{ paddingHorizontal: 20 }}>
+      <View style={styles.filterWrapper}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={{ paddingHorizontal: 20 }}>
           {TYPE_FILTERS.map(t => (
             <TouchableOpacity
               key={t}
@@ -139,6 +151,21 @@ export default function LedgerScreen() {
             </TouchableOpacity>
           ))}
         </ScrollView>
+      </View>
+
+      {/* Custom Date Selection UI */}
+      {TIMEFRAMES[selectedTimeframe].days === -1 && (
+        <View style={styles.customDateRow}>
+          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowStartPicker(true)}>
+            <Text style={styles.dateLabel}>Start</Text>
+            <Text style={styles.dateValue}>{customStart.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</Text>
+          </TouchableOpacity>
+          <Ionicons name="arrow-forward" size={16} color="#94A3B8" />
+          <TouchableOpacity style={styles.dateBtn} onPress={() => setShowEndPicker(true)}>
+            <Text style={styles.dateLabel}>End</Text>
+            <Text style={styles.dateValue}>{customEnd.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric'})}</Text>
+          </TouchableOpacity>
+        </View>
       )}
 
       {/* Summary Bar */}
@@ -202,6 +229,30 @@ export default function LedgerScreen() {
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 100 }}
         stickySectionHeadersEnabled={false}
       />
+
+      {/* Date Pickers */}
+      {showStartPicker && (
+        <DateTimePicker
+          value={customStart}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowStartPicker(Platform.OS === 'ios');
+            if (date) setCustomStart(date);
+          }}
+        />
+      )}
+      {showEndPicker && (
+        <DateTimePicker
+          value={customEnd}
+          mode="date"
+          display="default"
+          onChange={(event, date) => {
+            setShowEndPicker(Platform.OS === 'ios');
+            if (date) setCustomEnd(date);
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -214,17 +265,23 @@ const styles = StyleSheet.create({
   searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 14, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
   searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 15, color: Colors.light.text },
 
-  timeframeRow: { marginBottom: 8, maxHeight: 44 },
-  tfChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  filterWrapper: { height: 40, marginBottom: 12 },
+  filterScroll: { flex: 1 },
+  
+  tfChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0', height: 36, justifyContent: 'center' },
   tfChipActive: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
   tfChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
   tfChipTextActive: { color: '#FFF' },
 
-  typeRow: { marginBottom: 12, maxHeight: 44 },
-  typeChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0' },
+  typeChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0', height: 36, justifyContent: 'center' },
   typeChipActive: { backgroundColor: Colors.light.text, borderColor: Colors.light.text },
   typeChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
   typeChipTextActive: { color: '#FFF' },
+
+  customDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginHorizontal: 20, marginBottom: 16, backgroundColor: '#FFF', padding: 12, borderRadius: 16, gap: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  dateBtn: { flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, alignItems: 'center' },
+  dateLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginBottom: 2 },
+  dateValue: { fontSize: 14, color: Colors.light.text, fontWeight: '700' },
 
   summaryBar: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 16, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
   summaryItem: { flex: 1, alignItems: 'center' },

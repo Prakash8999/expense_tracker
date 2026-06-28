@@ -14,7 +14,7 @@ const { width } = Dimensions.get('window');
 const CARD_WIDTH = width - 40;
 
 export default function DashboardScreen() {
-  const { accounts, transactions, currency, isLoading, loadData, categories } = useStore();
+  const { accounts, transactions, currency, isLoading, loadData, categories, plannedPayments, debts, goals } = useStore();
 
   useEffect(() => { loadData(); }, []);
 
@@ -53,7 +53,72 @@ export default function DashboardScreen() {
       .slice(0, 5);
   }, [transactions, categories]);
 
-  const recentTxns = transactions.slice(0, 8);
+  // 1. Safe to Spend
+  const safeToSpend = useMemo(() => {
+    const now = new Date();
+    const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysLeft = Math.max(1, daysInMonth - now.getDate() + 1);
+    
+    const activeBills = plannedPayments.reduce((sum, p) => sum + p.amount, 0);
+    
+    // If they have income logged this month, use strict budgeting
+    let available = 0;
+    if (monthStats.income > 0) {
+      available = monthStats.income - monthStats.expense - activeBills;
+    } else {
+      // Fallback: use total bank balance
+      available = totalBalance - activeBills;
+    }
+    
+    return available > 0 ? available / daysLeft : 0;
+  }, [monthStats, plannedPayments, totalBalance]);
+
+  // 2. Financial Health Score
+  const healthScore = useMemo(() => {
+    if (monthStats.income === 0) return { msg: "Keep track of your spending!", color: "#42A5F5", icon: "information-circle" };
+    const saved = monthStats.income - monthStats.expense;
+    const rate = (saved / monthStats.income) * 100;
+    if (rate >= 20) return { msg: `🔥 Amazing! Saving ${rate.toFixed(0)}% this month.`, color: "#66BB6A", icon: "flame" };
+    if (rate >= 5) return { msg: `👍 Good job! Saving ${rate.toFixed(0)}% this month.`, color: "#42A5F5", icon: "thumbs-up" };
+    if (rate >= 0) return { msg: `⚠️ You are breaking even. Watch your expenses.`, color: "#FFA726", icon: "warning" };
+    return { msg: `🚨 You're overspending by ${Math.abs(rate).toFixed(0)}%!`, color: "#EF5350", icon: "alert-circle" };
+  }, [monthStats]);
+
+  // 3. Upcoming Bills
+  const upcomingBills = useMemo(() => {
+    const now = Date.now();
+    return [...plannedPayments]
+      .filter(p => p.nextDueDate >= now)
+      .sort((a, b) => a.nextDueDate - b.nextDueDate)
+      .slice(0, 5);
+  }, [plannedPayments]);
+
+  // 4. Active Goal Mini Tracker
+  const activeGoal = useMemo(() => {
+    if (goals.length === 0) return null;
+    return [...goals].sort((a, b) => {
+      const aDone = a.currentAmount >= a.targetAmount;
+      const bDone = b.currentAmount >= b.targetAmount;
+      if (aDone && !bDone) return 1;
+      if (!aDone && bDone) return -1;
+      return (a.targetDate || Infinity) - (b.targetDate || Infinity);
+    })[0];
+  }, [goals]);
+
+  // 5. Debt Overview
+  const debtStats = useMemo(() => {
+    let toCollect = 0;
+    let toPay = 0;
+    debts.forEach(d => {
+      if (!d.isSettled) {
+        if (d.type === 'lent') toCollect += d.remainingAmount;
+        else toPay += d.remainingAmount;
+      }
+    });
+    return { toCollect, toPay };
+  }, [debts]);
+
+  const recentTxns = transactions.slice(0, 10);
 
   const getCategoryForTxn = (txn: any) => {
     if (!txn.categoryId) return null;
@@ -161,6 +226,72 @@ export default function DashboardScreen() {
                 </View>
               ))}
             </ScrollView>
+          </View>
+        )}
+
+        {/* 1. Safe To Spend (Simple Text) */}
+        <View style={styles.safeToSpendSection}>
+          <Text style={styles.safeToSpendText}>
+            Daily Safe to Spend: <Text style={{fontWeight: '800', color: Colors.light.tint}}>{formatCurrency(safeToSpend, currency.code)}</Text>
+          </Text>
+        </View>
+
+        {/* 3. Financial Health Streak */}
+        <View style={[styles.healthCard, { backgroundColor: healthScore.color + '15' }]}>
+          <Ionicons name={healthScore.icon as any} size={24} color={healthScore.color} />
+          <Text style={[styles.healthMsg, { color: healthScore.color }]}>{healthScore.msg}</Text>
+        </View>
+
+        {/* 2. Upcoming Bills */}
+        {upcomingBills.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Upcoming Bills</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.billsScroll}>
+              {upcomingBills.map(bill => (
+                <View key={bill.id} style={styles.billCard}>
+                  <View style={styles.billIcon}><Ionicons name="calendar-outline" size={20} color="#7E57C2" /></View>
+                  <Text style={styles.billName} numberOfLines={1}>{bill.name}</Text>
+                  <Text style={styles.billAmount}>{formatCurrency(bill.amount, currency.code)}</Text>
+                  <Text style={styles.billDue}>Due in {Math.ceil((bill.nextDueDate - Date.now())/86400000)}d</Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* 4. Active Goal */}
+        {activeGoal && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Goal Progress</Text>
+            <TouchableOpacity style={styles.activeGoalCard} onPress={() => router.push(`/goal-details/${activeGoal.id}` as any)} activeOpacity={0.8}>
+              <View style={[styles.goalIconMini, { backgroundColor: activeGoal.color + '20' }]}>
+                <Ionicons name={activeGoal.icon as any} size={20} color={activeGoal.color} />
+              </View>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={styles.activeGoalName}>{activeGoal.name}</Text>
+                <View style={styles.goalMiniBarBg}>
+                  <View style={[styles.goalMiniBarFill, { width: `${Math.min(100, (activeGoal.currentAmount/activeGoal.targetAmount)*100)}%`, backgroundColor: activeGoal.color }]} />
+                </View>
+              </View>
+              <Text style={styles.activeGoalPct}>{Math.min(100, (activeGoal.currentAmount/activeGoal.targetAmount)*100).toFixed(0)}%</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* 5. Debt Overview */}
+        {(debtStats.toCollect > 0 || debtStats.toPay > 0) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Debts & Loans</Text>
+            <View style={styles.debtRow}>
+              <View style={[styles.debtBox, { backgroundColor: '#F0FFF4' }]}>
+                <Text style={styles.debtBoxLabel}>To Collect</Text>
+                <Text style={[styles.debtBoxAmount, { color: '#66BB6A' }]}>{formatCurrency(debtStats.toCollect, currency.code)}</Text>
+              </View>
+              <View style={[styles.debtBox, { backgroundColor: '#FFF0F0' }]}>
+                <Text style={styles.debtBoxLabel}>To Pay</Text>
+                <Text style={[styles.debtBoxAmount, { color: '#EF5350' }]}>{formatCurrency(debtStats.toPay, currency.code)}</Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -301,4 +432,30 @@ const styles = StyleSheet.create({
   emptySubtext: { fontSize: 13, color: '#CBD5E1', marginTop: 4 },
 
   fab: { position: 'absolute', bottom: 20, right: 20, width: 56, height: 56, borderRadius: 18, backgroundColor: Colors.light.tint, justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: Colors.light.tint, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8 },
+
+  // New Widgets Styles
+  safeToSpendSection: { paddingHorizontal: 20, marginBottom: 16 },
+  safeToSpendText: { fontSize: 16, color: '#64748B', fontWeight: '500' },
+  
+  healthCard: { marginHorizontal: 20, marginBottom: 24, padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  healthMsg: { fontSize: 14, fontWeight: '600', flex: 1 },
+
+  billsScroll: { paddingTop: 4, paddingBottom: 12 },
+  billCard: { width: 140, backgroundColor: '#FFF', padding: 16, borderRadius: 16, marginRight: 12, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
+  billIcon: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F5F0FF', justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
+  billName: { fontSize: 14, fontWeight: '600', color: Colors.light.text, marginBottom: 4 },
+  billAmount: { fontSize: 16, fontWeight: '800', color: Colors.light.text, marginBottom: 4 },
+  billDue: { fontSize: 12, color: '#EF5350', fontWeight: '500' },
+
+  activeGoalCard: { backgroundColor: '#FFF', padding: 16, borderRadius: 16, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
+  goalIconMini: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  activeGoalName: { fontSize: 15, fontWeight: '700', color: Colors.light.text, marginBottom: 8 },
+  goalMiniBarBg: { width: '100%', height: 6, backgroundColor: '#F1F5F9', borderRadius: 3 },
+  goalMiniBarFill: { height: 6, borderRadius: 3 },
+  activeGoalPct: { fontSize: 16, fontWeight: '800', color: Colors.light.text },
+
+  debtRow: { flexDirection: 'row', gap: 12 },
+  debtBox: { flex: 1, padding: 16, borderRadius: 16, alignItems: 'center' },
+  debtBoxLabel: { fontSize: 13, color: '#64748B', fontWeight: '600', marginBottom: 4 },
+  debtBoxAmount: { fontSize: 18, fontWeight: '800' },
 });
