@@ -11,18 +11,18 @@ const MENU_SECTIONS = [
   {
     title: 'Finance Tools',
     items: [
-      { key: 'accounts', icon: 'wallet', color: '#6366F1', label: 'Accounts', route: '/add-account' },
+      { key: 'accounts', icon: 'wallet', color: '#6366F1', label: 'Accounts', route: '/accounts' },
       { key: 'categories', icon: 'grid', color: '#42A5F5', label: 'Categories', route: '/manage-categories' },
-      { key: 'planned', icon: 'calendar', color: '#FF7043', label: 'Planned Payments', route: '/add-planned-payment' },
-      { key: 'debts', icon: 'people-circle', color: '#EF5350', label: 'Debt Tracker', route: '/add-debt' },
+      { key: 'planned', icon: 'calendar', color: '#FF7043', label: 'Planned Payments', route: '/planned-payments' },
+      { key: 'debts', icon: 'people-circle', color: '#EF5350', label: 'Debt Tracker', route: '/debts' },
     ],
   },
   {
     title: 'Utilities',
     items: [
-      { key: 'shopping', icon: 'cart', color: '#66BB6A', label: 'Shopping Lists', route: '/add-shopping-list' },
-      { key: 'documents', icon: 'document-text', color: '#FFA726', label: 'Document Vault', route: '/add-shopping-list' },
-      { key: 'investments', icon: 'trending-up', color: '#26A69A', label: 'Investments', route: '/add-shopping-list' },
+      { key: 'shopping', icon: 'cart', color: '#66BB6A', label: 'Shopping Lists', route: '/shopping' },
+      { key: 'documents', icon: 'document-text', color: '#FFA726', label: 'Document Vault', route: '/documents' },
+      { key: 'investments', icon: 'trending-up', color: '#26A69A', label: 'Investments', route: '/investments' },
     ],
   },
   {

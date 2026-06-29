@@ -17,6 +17,7 @@ export const accounts = sqliteTable('accounts', {
   color: text('color').notNull().default('#6366F1'),
   createdAt: integer('created_at').notNull(),
   isArchived: integer('is_archived', { mode: 'boolean' }).default(false),
+  isHidden: integer('is_hidden', { mode: 'boolean' }).default(false), // Premium feature: Hidden Mode
 });
 
 // ─── Categories ──────────────────────────────────────────────
@@ -44,6 +45,7 @@ export const transactions = sqliteTable('transactions', {
   groupId: text('group_id'),
   isRecurring: integer('is_recurring', { mode: 'boolean' }).default(false),
   recurringId: text('recurring_id'), // links to planned_payments
+  status: text('status').default('success'), // 'success' | 'failed' | 'pending'
   createdAt: integer('created_at').notNull(),
 });
 
@@ -124,6 +126,7 @@ export const debtPayments = sqliteTable('debt_payments', {
 export const shoppingLists = sqliteTable('shopping_lists', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  budget: real('budget'), // optional budget limit
   createdAt: integer('created_at').notNull(),
   isCompleted: integer('is_completed', { mode: 'boolean' }).default(false),
 });
@@ -133,6 +136,9 @@ export const shoppingItems = sqliteTable('shopping_items', {
   listId: text('list_id').notNull(),
   name: text('name').notNull(),
   expectedPrice: real('expected_price'),
+  quantity: real('quantity'),
+  unit: text('unit'),
+  category: text('category'), // for smart sorting
   isChecked: integer('is_checked', { mode: 'boolean' }).default(false),
   sortOrder: integer('sort_order').default(0),
 });

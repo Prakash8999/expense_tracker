@@ -61,7 +61,7 @@ export async function addAccount(data: {
 }
 
 export async function updateAccount(id: string, data: Partial<{
-  name: string; type: string; balance: number; icon: string; color: string;
+  name: string; type: string; balance: number; icon: string; color: string; isHidden: boolean;
 }>) {
   await db.update(accounts).set(data).where(eq(accounts.id, id));
 }
@@ -414,6 +414,58 @@ export async function deletePlannedPayment(id: string) {
   await db.update(plannedPayments).set({ isActive: false }).where(eq(plannedPayments.id, id));
 }
 
+export async function markPlannedPaymentAsPaid(id: string) {
+  const ppRows = await db.select().from(plannedPayments).where(eq(plannedPayments.id, id));
+  if (ppRows.length === 0) return { success: false, error: 'Not found' };
+  const pp = ppRows[0];
+
+  const accRows = await db.select().from(accounts).where(eq(accounts.id, pp.accountId));
+  if (accRows.length === 0) return { success: false, error: 'Account not found' };
+  const acc = accRows[0];
+
+  // Auto-deduction logic
+  let status = 'success';
+  if (pp.type === 'expense' && acc.balance < pp.amount) {
+    status = 'failed';
+  }
+
+  // Create Transaction record
+  await db.insert(transactions).values({
+    id: uuid(),
+    accountId: pp.accountId,
+    categoryId: pp.categoryId,
+    amount: pp.amount,
+    type: pp.type,
+    date: now(),
+    note: `Recurring: ${pp.name}`,
+    isRecurring: true,
+    recurringId: pp.id,
+    status: status,
+    createdAt: now(),
+  });
+
+  if (status === 'success') {
+    // Deduct/Add balance
+    if (pp.type === 'expense') {
+      await db.update(accounts).set({ balance: acc.balance - pp.amount }).where(eq(accounts.id, acc.id));
+    } else if (pp.type === 'income') {
+      await db.update(accounts).set({ balance: acc.balance + pp.amount }).where(eq(accounts.id, acc.id));
+    }
+
+    // Advance nextDueDate
+    const nextDate = new Date(pp.nextDueDate);
+    if (pp.frequency === 'daily') nextDate.setDate(nextDate.getDate() + 1);
+    if (pp.frequency === 'weekly') nextDate.setDate(nextDate.getDate() + 7);
+    if (pp.frequency === 'monthly') nextDate.setMonth(nextDate.getMonth() + 1);
+    if (pp.frequency === 'yearly') nextDate.setFullYear(nextDate.getFullYear() + 1);
+
+    await db.update(plannedPayments).set({ nextDueDate: nextDate.getTime() }).where(eq(plannedPayments.id, pp.id));
+    return { success: true, message: 'Payment marked as paid.' };
+  } else {
+    return { success: false, error: 'Insufficient funds in the linked account.' };
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // DEBTS
 // ═══════════════════════════════════════════════════════════════
@@ -464,6 +516,30 @@ export async function getDebtPayments(debtId: string) {
     .orderBy(desc(debtPayments.date));
 }
 
+export async function consolidateDebts(debtOwedToMeId: string, debtIOweId: string, settleAmount: number) {
+  const dOweToMeRows = await db.select().from(debts).where(eq(debts.id, debtOwedToMeId));
+  const dIOweRows = await db.select().from(debts).where(eq(debts.id, debtIOweId));
+  
+  if (dOweToMeRows.length === 0 || dIOweRows.length === 0) return false;
+  const dOweToMe = dOweToMeRows[0];
+  const dIOwe = dIOweRows[0];
+
+  const newDOweToMe = dOweToMe.remainingAmount - settleAmount;
+  const newDIOwe = dIOwe.remainingAmount - settleAmount;
+
+  await db.update(debts).set({ 
+    remainingAmount: Math.max(0, newDOweToMe), 
+    isSettled: newDOweToMe <= 0 
+  }).where(eq(debts.id, debtOwedToMeId));
+
+  await db.update(debts).set({ 
+    remainingAmount: Math.max(0, newDIOwe), 
+    isSettled: newDIOwe <= 0 
+  }).where(eq(debts.id, debtIOweId));
+
+  return true;
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SHOPPING LISTS
 // ═══════════════════════════════════════════════════════════════
@@ -471,10 +547,14 @@ export async function getShoppingLists() {
   return db.select().from(shoppingLists).orderBy(desc(shoppingLists.createdAt));
 }
 
-export async function addShoppingList(name: string) {
+export async function addShoppingList(name: string, budget?: number) {
   const id = uuid();
-  await db.insert(shoppingLists).values({ id, name, createdAt: now(), isCompleted: false });
+  await db.insert(shoppingLists).values({ id, name, budget: budget || null, createdAt: now(), isCompleted: false });
   return id;
+}
+
+export async function updateShoppingList(id: string, data: Partial<{ name: string; budget: number; isCompleted: boolean }>) {
+  await db.update(shoppingLists).set(data).where(eq(shoppingLists.id, id));
 }
 
 export async function getShoppingItems(listId: string) {
@@ -483,10 +563,10 @@ export async function getShoppingItems(listId: string) {
     .orderBy(asc(shoppingItems.sortOrder));
 }
 
-export async function addShoppingItem(listId: string, name: string, expectedPrice?: number) {
+export async function addShoppingItem(listId: string, name: string, expectedPrice?: number, category?: string, quantity?: number, unit?: string) {
   const id = uuid();
   await db.insert(shoppingItems).values({
-    id, listId, name, expectedPrice: expectedPrice || null, isChecked: false, sortOrder: 999,
+    id, listId, name, expectedPrice: expectedPrice || null, quantity: quantity || null, unit: unit || null, category: category || null, isChecked: false, sortOrder: 999,
   });
   return id;
 }
