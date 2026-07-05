@@ -1,67 +1,32 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { db } from '@/db';
+import { groups } from '@/db/schema';
+import { desc } from 'drizzle-orm';
 
 const { width } = Dimensions.get('window');
 
-const FEATURES = [
-  {
-    icon: 'people',
-    color: '#6366F1',
-    bg: '#EEF2FF',
-    title: 'Friend Groups',
-    desc: 'Create travel, roommate, or dinner groups to track shared costs.',
-  },
-  {
-    icon: 'receipt',
-    color: '#0EA5E9',
-    bg: '#E0F2FE',
-    title: 'Shared Expenses',
-    desc: 'Split bills equally, by percentage, or by exact custom amounts.',
-  },
-  {
-    icon: 'git-merge',
-    color: '#10B981',
-    bg: '#D1FAE5',
-    title: 'Debt Simplification',
-    desc: 'Our engine calculates the minimum transactions needed for everyone to settle up.',
-  },
-  {
-    icon: 'link',
-    color: '#F59E0B',
-    bg: '#FEF3C7',
-    title: 'Personal Sync',
-    desc: 'Your share of a group expense automatically hits your personal budget.',
-  },
-];
-
 export default function GroupsScreen() {
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <LinearGradient
-        colors={['#6366F115', '#EEF2FF30', Colors.light.background]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.5, y: 0.6 }}
-      />
+  const router = useRouter();
+  const [allGroups, setAllGroups] = React.useState<any[]>([]);
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.badgeRow}>
-          <View style={styles.comingSoonBadge}>
-            <Text style={styles.comingSoonText}>🚀 Coming Soon</Text>
-          </View>
-        </View>
-        <Text style={styles.headerTitle}>Group Splitter</Text>
-        <Text style={styles.headerSub}>
-          Split expenses with friends, simplify debts, and keep everyone even — without the awkward math.
-        </Text>
-      </View>
+  useFocusEffect(
+    React.useCallback(() => {
+      const fetchGroups = async () => {
+        const data = await db.select().from(groups).orderBy(desc(groups.createdAt));
+        setAllGroups(data);
+      };
+      fetchGroups();
+    }, [])
+  );
 
-      {/* Big illustration icon */}
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
       <View style={styles.heroArea}>
         <View style={styles.heroCircle}>
           <Ionicons name="people" size={64} color="#6366F1" />
@@ -73,56 +38,112 @@ export default function GroupsScreen() {
           <Ionicons name="calculator" size={20} color="#F59E0B" />
         </View>
       </View>
+      <Text style={styles.emptyTitle}>No Groups Yet</Text>
+      <Text style={styles.emptySub}>
+        Create a group for a trip, shared apartment, or dinner with friends to start splitting expenses.
+      </Text>
+    </View>
+  );
 
-      {/* Feature Preview Cards */}
-      <View style={styles.featuresWrap}>
-        {FEATURES.map((f, i) => (
-          <View key={i} style={styles.featureRow}>
-            <View style={[styles.featureIcon, { backgroundColor: f.bg }]}>
-              <Ionicons name={f.icon as any} size={22} color={f.color} />
-            </View>
-            <View style={styles.featureText}>
-              <Text style={styles.featureTitle}>{f.title}</Text>
-              <Text style={styles.featureDesc}>{f.desc}</Text>
-            </View>
-          </View>
-        ))}
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <LinearGradient
+        colors={['#6366F115', '#EEF2FF30', Colors.light.background]}
+        style={StyleSheet.absoluteFill}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 0.5, y: 0.6 }}
+      />
+
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Groups</Text>
+        <Text style={styles.headerSub}>
+          Split expenses and settle up with friends.
+        </Text>
       </View>
 
-      {/* CTA */}
-      <View style={styles.ctaArea}>
-        <TouchableOpacity style={styles.notifyBtn} activeOpacity={0.85}>
-          <LinearGradient
-            colors={['#6366F1', '#818CF8']}
-            style={styles.notifyGradient}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}>
-            <Ionicons name="notifications" size={18} color="#FFF" />
-            <Text style={styles.notifyBtnText}>We're building this next!</Text>
-          </LinearGradient>
-        </TouchableOpacity>
-        <Text style={styles.ctaSub}>Personal Expense Tracker is completing first</Text>
-      </View>
+      <FlatList
+        data={allGroups}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={renderEmptyState}
+        renderItem={({ item }) => (
+          <TouchableOpacity 
+            style={styles.groupCard} 
+            activeOpacity={0.7}
+            onPress={() => router.push(`/groups/${item.id}` as any)}
+          >
+            <View style={styles.groupIcon}>
+              <Ionicons name="people" size={24} color="#6366F1" />
+            </View>
+            <View style={styles.groupInfo}>
+              <Text style={styles.groupName}>{item.name}</Text>
+              {item.description ? (
+                <Text style={styles.groupDesc} numberOfLines={1}>{item.description}</Text>
+              ) : null}
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+          </TouchableOpacity>
+        )}
+      />
+
+      <TouchableOpacity 
+        style={styles.fab} 
+        activeOpacity={0.8}
+        onPress={() => router.push('/groups/new' as any)}
+      >
+        <LinearGradient
+          colors={['#6366F1', '#818CF8']}
+          style={styles.fabGradient}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}>
+          <Ionicons name="add" size={28} color="#FFF" />
+        </LinearGradient>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.light.background },
-
-  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 8 },
-  badgeRow: { marginBottom: 10 },
-  comingSoonBadge: {
-    alignSelf: 'flex-start', backgroundColor: '#6366F110', borderWidth: 1, borderColor: '#6366F130',
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 5,
+  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
+  headerTitle: { fontSize: 32, fontWeight: '800', color: Colors.light.text, lineHeight: 38 },
+  headerSub: { fontSize: 15, color: Colors.light.textSecondary, marginTop: 4 },
+  
+  listContent: { paddingHorizontal: 20, paddingBottom: 100, flexGrow: 1 },
+  
+  groupCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    padding: 16,
+    borderRadius: 16,
+    marginBottom: 12,
+    elevation: 2,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
-  comingSoonText: { fontSize: 12, fontWeight: '700', color: '#6366F1' },
-  headerTitle: { fontSize: 30, fontWeight: '800', color: Colors.light.text, lineHeight: 36 },
-  headerSub: { fontSize: 14, color: Colors.light.textSecondary, marginTop: 8, lineHeight: 20 },
+  groupIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  groupInfo: { flex: 1 },
+  groupName: { fontSize: 17, fontWeight: '700', color: Colors.light.text, marginBottom: 4 },
+  groupDesc: { fontSize: 13, color: Colors.light.textSecondary },
+
+  emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: Colors.light.text, marginTop: 24 },
+  emptySub: { fontSize: 14, color: Colors.light.textSecondary, textAlign: 'center', marginTop: 8, paddingHorizontal: 32, lineHeight: 22 },
 
   heroArea: {
     alignItems: 'center', justifyContent: 'center',
-    height: 130, marginVertical: 4, position: 'relative',
+    height: 130, width: '100%', position: 'relative',
   },
   heroCircle: {
     width: 110, height: 110, borderRadius: 55,
@@ -135,20 +156,23 @@ const styles = StyleSheet.create({
     elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4,
   },
 
-  featuresWrap: { paddingHorizontal: 20, gap: 12, marginTop: 8 },
-  featureRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
-    backgroundColor: '#FFF', borderRadius: 16, padding: 16,
-    elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4,
+  fab: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    elevation: 8,
+    shadowColor: '#6366F1',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
   },
-  featureIcon: { width: 44, height: 44, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
-  featureText: { flex: 1 },
-  featureTitle: { fontSize: 15, fontWeight: '700', color: Colors.light.text },
-  featureDesc: { fontSize: 13, color: Colors.light.textSecondary, marginTop: 3, lineHeight: 18 },
-
-  ctaArea: { alignItems: 'center', paddingHorizontal: 24, paddingTop: 20 },
-  notifyBtn: { width: '100%', borderRadius: 16, overflow: 'hidden', elevation: 4, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
-  notifyGradient: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
-  notifyBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
-  ctaSub: { fontSize: 13, color: '#94A3B8', marginTop: 12 },
+  fabGradient: {
+    flex: 1,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

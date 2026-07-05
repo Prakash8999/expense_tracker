@@ -168,10 +168,12 @@ export const investments = sqliteTable('investments', {
   createdAt: integer('created_at').notNull(),
 });
 
-// ─── Groups (for bill splitting - future) ────────────────────
+// ─── Groups (for bill splitting) ────────────────────────────────
 export const groups = sqliteTable('groups', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
+  description: text('description'),
+  coverImage: text('cover_image'),
   currency: text('currency').notNull().default('USD'),
   createdAt: integer('created_at').notNull(),
 });
@@ -183,11 +185,30 @@ export const groupMembers = sqliteTable('group_members', {
   isUser: integer('is_user', { mode: 'boolean' }).default(false),
 });
 
-export const splits = sqliteTable('splits', {
+export const groupExpenses = sqliteTable('group_expenses', {
   id: text('id').primaryKey(),
-  transactionId: text('transaction_id').notNull(),
   groupId: text('group_id').notNull(),
+  description: text('description').notNull(),
+  categoryId: text('category_id'), // optional link to main categories
+  totalAmount: real('total_amount').notNull(),
+  date: integer('date').notNull(),
+  receiptImage: text('receipt_image'),
+  createdAt: integer('created_at').notNull(),
+});
+
+export const groupExpenseParticipants = sqliteTable('group_expense_participants', {
+  id: text('id').primaryKey(),
+  expenseId: text('expense_id').notNull(),
   memberId: text('member_id').notNull(),
+  paidShare: real('paid_share').notNull().default(0), // How much they actually paid
+  owedShare: real('owed_share').notNull().default(0), // How much of the expense was theirs
+});
+
+export const groupSettlements = sqliteTable('group_settlements', {
+  id: text('id').primaryKey(),
+  groupId: text('group_id').notNull(),
+  fromMemberId: text('from_member_id').notNull(),
+  toMemberId: text('to_member_id').notNull(),
   amount: real('amount').notNull(),
-  isPaid: integer('is_paid', { mode: 'boolean' }).default(false),
+  date: integer('date').notNull(),
 });

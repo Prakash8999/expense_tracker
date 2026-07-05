@@ -349,7 +349,7 @@ export default function DashboardScreen() {
                     <Text style={styles.txnDate}>{new Date(txn.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text>
                   </View>
                   <Text style={[styles.txnAmount, { color: txn.type === 'income' ? '#66BB6A' : txn.type === 'transfer' ? '#42A5F5' : '#EF5350' }]}>
-                    {txn.type === 'income' ? '+' : txn.type === 'transfer' ? '' : '-'}{formatCurrency(txn.amount, currency.code)}
+                    {txn.type === 'income' ? '+' : (txn.type === 'expense' || (txn.type === 'transfer' && !txn.toAccountId)) ? '-' : ''}{formatCurrency(txn.amount, currency.code)}
                   </Text>
                 </View>
               );

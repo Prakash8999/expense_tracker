@@ -111,6 +111,56 @@ export default function MoreScreen() {
           <Text style={styles.appName}>💰 FinTrack</Text>
           <Text style={styles.appVersion}>Version 1.0.0 • Offline First</Text>
           <Text style={styles.appCurrency}>Currency: {currency.name} ({currency.symbol})</Text>
+          
+          <TouchableOpacity 
+            style={{ marginTop: 24, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}
+            onPress={() => {
+              import('react-native').then(({ Alert }) => {
+                Alert.alert(
+                  'Clear All Data',
+                  'Are you sure you want to delete ALL data? This includes accounts, transactions, and groups.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { 
+                      text: 'Delete', style: 'destructive',
+                      onPress: async () => {
+                        const { db } = require('@/db');
+                        const schema = require('@/db/schema');
+                        try {
+                          await db.delete(schema.transactions);
+                          await db.delete(schema.accounts);
+                          await db.delete(schema.categories);
+                          await db.delete(schema.budgets);
+                          await db.delete(schema.debts);
+                          await db.delete(schema.debtPayments);
+                          await db.delete(schema.goals);
+                          await db.delete(schema.goalContributions);
+                          await db.delete(schema.plannedPayments);
+                          await db.delete(schema.shoppingLists);
+                          await db.delete(schema.shoppingItems);
+                          await db.delete(schema.documents);
+                          await db.delete(schema.investments);
+                          await db.delete(schema.groups);
+                          await db.delete(schema.groupMembers);
+                          await db.delete(schema.groupExpenses);
+                          await db.delete(schema.groupExpenseParticipants);
+                          await db.delete(schema.groupSettlements);
+                          
+                          useStore.getState().loadData();
+                          Alert.alert('Success', 'Database has been reset.');
+                        } catch(e) {
+                          console.error(e);
+                          Alert.alert('Error', 'Failed to clear database.');
+                        }
+                      }
+                    }
+                  ]
+                );
+              });
+            }}
+          >
+            <Text style={{ color: '#EF4444', fontWeight: '700' }}>⚠️ Clear Database</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={{ height: 100 }} />
