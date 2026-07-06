@@ -118,7 +118,31 @@ export default function DashboardScreen() {
     return { toCollect, toPay };
   }, [debts]);
 
-  const recentTxns = transactions.slice(0, 10);
+  const displayTxns = useMemo(() => {
+    const grouped: any[] = [];
+    const skipIds = new Set();
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (skipIds.has(t.id)) continue;
+      if (t.groupId) {
+        const match = transactions.find((x: any) => x.groupId === t.groupId && Math.abs(x.date - t.date) < 2000 && x.id !== t.id);
+        if (match) {
+          skipIds.add(match.id);
+          grouped.push({
+            ...t,
+            id: `group-${t.groupId}-${t.date}`,
+            amount: t.amount + match.amount,
+            note: t.note?.replace('My Share: ', '')?.replace('Lent to Group: ', ''),
+            type: 'expense',
+            isGrouped: true,
+          });
+          continue;
+        }
+      }
+      grouped.push(t);
+    }
+    return grouped.slice(0, 10);
+  }, [transactions]);
 
   const getCategoryForTxn = (txn: any) => {
     if (!txn.categoryId) return null;
@@ -330,14 +354,14 @@ export default function DashboardScreen() {
               <Text style={styles.seeAll}>See All</Text>
             </TouchableOpacity>
           </View>
-          {recentTxns.length === 0 ? (
+          {displayTxns.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
               <Text style={styles.emptyText}>No transactions yet</Text>
               <Text style={styles.emptySubtext}>Tap the + button to add your first transaction</Text>
             </View>
           ) : (
-            recentTxns.slice(0, 10).map((txn: any) => {
+            displayTxns.map((txn: any) => {
               const cat = getCategoryForTxn(txn);
               return (
                 <View key={txn.id} style={styles.txnRow}>

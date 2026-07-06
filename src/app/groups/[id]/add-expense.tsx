@@ -164,7 +164,8 @@ export default function AddGroupExpenseScreen() {
             amount: userOwedShare,
             type: 'expense',
             date: now,
-            note: `My Share: ${finalDescription} (${groupName})`
+            note: `My Share: ${finalDescription} (${groupName})`,
+            groupId
           });
         }
         
@@ -176,7 +177,8 @@ export default function AddGroupExpenseScreen() {
             amount: lentAmount,
             type: 'transfer', 
             date: now,
-            note: `Lent to Group: ${finalDescription} (${groupName})`
+            note: `Lent to Group: ${finalDescription} (${groupName})`,
+            groupId
           });
         }
       }

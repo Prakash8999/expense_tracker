@@ -218,7 +218,7 @@ export async function getTransactions(filters?: {
 export async function addTransaction(data: {
   accountId: string; categoryId?: string; amount: number;
   type: 'expense' | 'income' | 'transfer'; note?: string;
-  date?: number; toAccountId?: string;
+  date?: number; toAccountId?: string; groupId?: string;
 }) {
   const id = uuid();
   const txnDate = data.date || now();
@@ -232,6 +232,7 @@ export async function addTransaction(data: {
     type: data.type,
     date: txnDate,
     note: data.note || null,
+    groupId: data.groupId || null,
     createdAt: now(),
   });
 

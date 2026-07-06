@@ -34,7 +34,31 @@ export default function LedgerScreen() {
   const [showEndPicker, setShowEndPicker] = useState(false);
 
   const filteredTxns = useMemo(() => {
-    let result = [...transactions];
+    // Pre-process: visually group split group expenses
+    const groupedTxns: any[] = [];
+    const skipIds = new Set();
+    for (let i = 0; i < transactions.length; i++) {
+      const t = transactions[i];
+      if (skipIds.has(t.id)) continue;
+      if (t.groupId) {
+        const match = transactions.find((x: any) => x.groupId === t.groupId && Math.abs(x.date - t.date) < 2000 && x.id !== t.id);
+        if (match) {
+          skipIds.add(match.id);
+          groupedTxns.push({
+            ...t,
+            id: `group-${t.groupId}-${t.date}`,
+            amount: t.amount + match.amount,
+            note: t.note?.replace('My Share: ', '')?.replace('Lent to Group: ', ''),
+            type: 'expense',
+            isGrouped: true,
+          });
+          continue;
+        }
+      }
+      groupedTxns.push(t);
+    }
+
+    let result = [...groupedTxns];
     const tf = TIMEFRAMES[selectedTimeframe];
 
     // Timeframe filter
