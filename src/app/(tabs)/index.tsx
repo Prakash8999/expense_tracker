@@ -6,6 +6,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useStore } from '@/store/useStore';
+import { db } from '@/db';
+import { categories as dbCategories } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { Colors } from '@/constants/theme';
 import { formatCurrency } from '@/utils/currency';
 
@@ -16,7 +19,13 @@ const CARD_WIDTH = width - 40;
 export default function DashboardScreen() {
   const { accounts, transactions, currency, isLoading, loadData, categories, plannedPayments, debts, goals } = useStore();
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    // Patch the icon in the database for users who already seeded
+    db.update(dbCategories)
+      .set({ icon: 'map' })
+      .where(eq(dbCategories.name, 'Trips & Travel'))
+      .then(() => loadData());
+  }, []);
 
   const totalBalance = useMemo(
     () => accounts.reduce((sum: number, a: any) => sum + a.balance, 0),

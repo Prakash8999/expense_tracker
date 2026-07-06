@@ -66,6 +66,7 @@ export const DEFAULT_EXPENSE_CATEGORIES: DefaultParentCategory[] = [
       { name: 'Hobbies', icon: 'color-palette' },
       { name: 'Books & Magazines', icon: 'book' },
       { name: 'Night Out', icon: 'moon' },
+      { name: 'Trips & Travel', icon: 'airplane' },
     ]
   },
   {
