@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useStore } from '@/store/useStore';
-import { Colors } from '@/constants/theme';
+import { Colors, FontFamily, Shadows, Radius, ScreenPadding } from '@/constants/theme';
 import { formatCurrency } from '@/utils/currency';
 
 const MENU_SECTIONS = [
@@ -113,7 +113,7 @@ export default function MoreScreen() {
           <Text style={styles.appCurrency}>Currency: {currency.name} ({currency.symbol})</Text>
           
           <TouchableOpacity 
-            style={{ marginTop: 24, padding: 12, backgroundColor: '#FEF2F2', borderRadius: 8, borderWidth: 1, borderColor: '#FECACA' }}
+            style={{ marginTop: 24, padding: 14, backgroundColor: Colors.light.dangerLight, borderRadius: Radius.sm, borderWidth: 1, borderColor: '#FECACA' }}
             onPress={() => {
               import('react-native').then(({ Alert }) => {
                 Alert.alert(
@@ -159,7 +159,7 @@ export default function MoreScreen() {
               });
             }}
           >
-            <Text style={{ color: '#EF4444', fontWeight: '700' }}>⚠️ Clear Database</Text>
+            <Text style={{ color: Colors.light.danger, fontFamily: FontFamily.bold }}>⚠️ Clear Database</Text>
           </TouchableOpacity>
         </View>
 
@@ -171,29 +171,29 @@ export default function MoreScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.light.background },
-  header: { paddingHorizontal: 20, paddingVertical: 14 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: Colors.light.text },
+  header: { paddingHorizontal: ScreenPadding, paddingVertical: 16 },
+  headerTitle: { fontSize: 26, fontFamily: FontFamily.extraBold, color: Colors.light.text },
 
-  statsRow: { flexDirection: 'row', paddingHorizontal: 20, gap: 10, marginBottom: 20 },
-  statCard: { flex: 1, backgroundColor: '#FFF', borderRadius: 14, padding: 14, alignItems: 'center', gap: 6, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-  statLabel: { fontSize: 11, fontWeight: '600', color: '#64748B', textAlign: 'center' },
+  statsRow: { flexDirection: 'row', paddingHorizontal: ScreenPadding, gap: 10, marginBottom: 24 },
+  statCard: { flex: 1, backgroundColor: Colors.light.card, borderRadius: Radius.md, padding: 16, alignItems: 'center', gap: 8, borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
+  statLabel: { fontSize: 11, fontFamily: FontFamily.semiBold, color: Colors.light.textSecondary, textAlign: 'center' },
 
-  debtSummary: { marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 16, marginBottom: 20, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-  debtItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
+  debtSummary: { marginHorizontal: ScreenPadding, backgroundColor: Colors.light.card, borderRadius: Radius.lg, padding: 18, marginBottom: 24, borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
+  debtItem: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   debtDot: { width: 10, height: 10, borderRadius: 5 },
-  debtLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: Colors.light.text },
-  debtAmount: { fontSize: 16, fontWeight: '700' },
+  debtLabel: { flex: 1, fontSize: 14, fontFamily: FontFamily.medium, color: Colors.light.text },
+  debtAmount: { fontSize: 16, fontFamily: FontFamily.bold },
 
-  menuSection: { paddingHorizontal: 20, marginBottom: 20 },
-  menuSectionTitle: { fontSize: 13, fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 },
-  menuCard: { backgroundColor: '#FFF', borderRadius: 16, overflow: 'hidden', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  menuSection: { paddingHorizontal: ScreenPadding, marginBottom: 24 },
+  menuSectionTitle: { fontSize: 11, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 12 },
+  menuCard: { backgroundColor: Colors.light.card, borderRadius: Radius.lg, overflow: 'hidden', borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
   menuItem: { flexDirection: 'row', alignItems: 'center', padding: 16, gap: 14 },
-  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  menuItemIcon: { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  menuItemLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: Colors.light.text },
+  menuItemBorder: { borderBottomWidth: 1, borderBottomColor: Colors.light.borderLight },
+  menuItemIcon: { width: 40, height: 40, borderRadius: Radius.sm, justifyContent: 'center', alignItems: 'center' },
+  menuItemLabel: { flex: 1, fontSize: 15, fontFamily: FontFamily.semiBold, color: Colors.light.text },
 
-  appInfo: { alignItems: 'center', paddingVertical: 32 },
-  appName: { fontSize: 20, fontWeight: '800', color: Colors.light.text },
-  appVersion: { fontSize: 13, color: '#94A3B8', marginTop: 4 },
-  appCurrency: { fontSize: 13, color: '#94A3B8', marginTop: 2 },
+  appInfo: { alignItems: 'center', paddingVertical: 36 },
+  appName: { fontSize: 20, fontFamily: FontFamily.extraBold, color: Colors.light.text },
+  appVersion: { fontSize: 13, fontFamily: FontFamily.medium, color: Colors.light.textTertiary, marginTop: 6 },
+  appCurrency: { fontSize: 13, fontFamily: FontFamily.medium, color: Colors.light.textTertiary, marginTop: 2 },
 });

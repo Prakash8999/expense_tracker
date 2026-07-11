@@ -174,30 +174,20 @@ export default function AddGroupExpenseScreen() {
       }));
       await db.insert(groupExpenseParticipants).values(participants);
 
-      // 3. Option B Personal Tracker Sync
+      // 3. Personal Tracker Sync
       if (payerIsUser && selectedAccountId) {
-        // Log the personal portion as an expense
-        if (userOwedShare > 0) {
+        // Find category name for the note
+        const categoryName = useStore.getState().expenseCategories.find(c => c.id === selectedCategoryId)?.name || 'Expense';
+        
+        // Log the ENTIRE AMOUNT PAID as a single expense
+        if (totalAmount > 0) {
           await addTxn({
             accountId: selectedAccountId,
             categoryId: selectedCategoryId,
-            amount: userOwedShare,
+            amount: totalAmount,
             type: 'expense',
             date: now,
-            note: `My Share: ${finalDescription} (${groupName})`,
-            groupId
-          });
-        }
-        
-        // Log the lent portion as a "Transfer" out so it deducts bank balance correctly
-        if (lentAmount > 0) {
-          await addTxn({
-            accountId: selectedAccountId,
-            categoryId: selectedCategoryId, 
-            amount: lentAmount,
-            type: 'transfer', 
-            date: now,
-            note: `Lent to Group: ${finalDescription} (${groupName})`,
+            note: `${finalDescription} - ${categoryName} (${groupName})`,
             groupId
           });
         }

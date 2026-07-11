@@ -6,7 +6,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useStore } from '@/store/useStore';
-import { Colors } from '@/constants/theme';
+import { Colors, FontFamily, Shadows, Radius, ScreenPadding } from '@/constants/theme';
 import { formatCurrency } from '@/utils/currency';
 
 const TIMEFRAMES = [
@@ -283,48 +283,48 @@ export default function LedgerScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.light.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 14 },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: Colors.light.text },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: ScreenPadding, paddingVertical: 16 },
+  headerTitle: { fontSize: 26, fontFamily: FontFamily.extraBold, color: Colors.light.text },
 
-  searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 14, paddingHorizontal: 14, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-  searchInput: { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 15, color: Colors.light.text },
+  searchContainer: { flexDirection: 'row', alignItems: 'center', marginHorizontal: ScreenPadding, backgroundColor: Colors.light.card, borderRadius: Radius.md, paddingHorizontal: 14, marginBottom: 14, borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
+  searchInput: { flex: 1, paddingVertical: 13, paddingHorizontal: 8, fontSize: 15, fontFamily: FontFamily.medium, color: Colors.light.text },
 
   filterWrapper: { height: 40, marginBottom: 12 },
   filterScroll: { flex: 1 },
   
-  tfChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0', height: 36, justifyContent: 'center' },
+  tfChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: Colors.light.card, marginRight: 8, borderWidth: 1, borderColor: Colors.light.border, height: 36, justifyContent: 'center' },
   tfChipActive: { backgroundColor: Colors.light.tint, borderColor: Colors.light.tint },
-  tfChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  tfChipText: { fontSize: 13, fontFamily: FontFamily.semiBold, color: Colors.light.textSecondary },
   tfChipTextActive: { color: '#FFF' },
 
-  typeChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFF', marginRight: 8, borderWidth: 1, borderColor: '#E2E8F0', height: 36, justifyContent: 'center' },
+  typeChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: Radius.full, backgroundColor: Colors.light.card, marginRight: 8, borderWidth: 1, borderColor: Colors.light.border, height: 36, justifyContent: 'center' },
   typeChipActive: { backgroundColor: Colors.light.text, borderColor: Colors.light.text },
-  typeChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  typeChipText: { fontSize: 13, fontFamily: FontFamily.semiBold, color: Colors.light.textSecondary },
   typeChipTextActive: { color: '#FFF' },
 
-  customDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginHorizontal: 20, marginBottom: 16, backgroundColor: '#FFF', padding: 12, borderRadius: 16, gap: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
-  dateBtn: { flex: 1, backgroundColor: '#F8FAFC', padding: 10, borderRadius: 10, alignItems: 'center' },
-  dateLabel: { fontSize: 11, color: '#94A3B8', fontWeight: '600', marginBottom: 2 },
-  dateValue: { fontSize: 14, color: Colors.light.text, fontWeight: '700' },
+  customDateRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginHorizontal: ScreenPadding, marginBottom: 16, backgroundColor: Colors.light.card, padding: 14, borderRadius: Radius.lg, gap: 12, borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
+  dateBtn: { flex: 1, backgroundColor: Colors.light.backgroundSubtle, padding: 10, borderRadius: Radius.sm, alignItems: 'center' },
+  dateLabel: { fontSize: 11, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary, marginBottom: 2 },
+  dateValue: { fontSize: 14, fontFamily: FontFamily.bold, color: Colors.light.text },
 
-  summaryBar: { flexDirection: 'row', marginHorizontal: 20, backgroundColor: '#FFF', borderRadius: 16, padding: 14, marginBottom: 16, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 4 },
+  summaryBar: { flexDirection: 'row', marginHorizontal: ScreenPadding, backgroundColor: Colors.light.card, borderRadius: Radius.lg, padding: 16, marginBottom: 18, borderWidth: 1, borderColor: Colors.light.borderLight, ...Shadows.sm },
   summaryItem: { flex: 1, alignItems: 'center' },
-  summaryLabel: { fontSize: 11, fontWeight: '600', color: '#94A3B8', marginBottom: 4 },
-  summaryValue: { fontSize: 14, fontWeight: '700' },
-  summaryDivider: { width: 1, backgroundColor: '#F1F5F9' },
+  summaryLabel: { fontSize: 11, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary, marginBottom: 6 },
+  summaryValue: { fontSize: 14, fontFamily: FontFamily.bold },
+  summaryDivider: { width: 1, backgroundColor: Colors.light.borderLight },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 16, paddingBottom: 8 },
-  sectionDate: { fontSize: 13, fontWeight: '600', color: '#94A3B8' },
-  sectionTotal: { fontSize: 13, fontWeight: '700' },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 18, paddingBottom: 10 },
+  sectionDate: { fontSize: 13, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary },
+  sectionTotal: { fontSize: 13, fontFamily: FontFamily.bold },
 
-  txnRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 14, borderRadius: 14, marginBottom: 8, gap: 12, elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.03, shadowRadius: 3 },
-  txnIcon: { width: 44, height: 44, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  txnRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.light.card, padding: 16, borderRadius: Radius.md, marginBottom: 8, gap: 14, borderWidth: 1, borderColor: Colors.light.borderLight },
+  txnIcon: { width: 46, height: 46, borderRadius: Radius.md, justifyContent: 'center', alignItems: 'center' },
   txnInfo: { flex: 1 },
-  txnName: { fontSize: 15, fontWeight: '600', color: Colors.light.text },
-  txnSubtext: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-  txnAmount: { fontSize: 16, fontWeight: '700' },
+  txnName: { fontSize: 15, fontFamily: FontFamily.semiBold, color: Colors.light.text },
+  txnSubtext: { fontSize: 12, fontFamily: FontFamily.medium, color: Colors.light.textTertiary, marginTop: 3 },
+  txnAmount: { fontSize: 16, fontFamily: FontFamily.bold },
 
   emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 16, fontWeight: '600', color: '#94A3B8', marginTop: 12 },
-  emptySubtext: { fontSize: 13, color: '#CBD5E1', marginTop: 4 },
+  emptyText: { fontSize: 16, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary, marginTop: 16 },
+  emptySubtext: { fontSize: 13, fontFamily: FontFamily.medium, color: '#CBD5E1', marginTop: 6 },
 });

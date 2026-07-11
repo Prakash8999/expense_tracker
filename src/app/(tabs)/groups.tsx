@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Dimensions, FlatList } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors } from '@/constants/theme';
+import { Colors, FontFamily, Shadows, Radius, ScreenPadding } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { db } from '@/db';
@@ -122,47 +122,45 @@ export default function GroupsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Colors.light.background },
-  header: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
-  headerTitle: { fontSize: 32, fontWeight: '800', color: Colors.light.text, lineHeight: 38 },
-  headerSub: { fontSize: 15, color: Colors.light.textSecondary, marginTop: 4 },
+  header: { paddingHorizontal: ScreenPadding + 4, paddingTop: 16, paddingBottom: 16 },
+  headerTitle: { fontSize: 32, fontFamily: FontFamily.extraBold, color: Colors.light.text, lineHeight: 38, letterSpacing: -0.5 },
+  headerSub: { fontSize: 15, fontFamily: FontFamily.medium, color: Colors.light.textSecondary, marginTop: 4 },
   
-  listContent: { paddingHorizontal: 20, paddingBottom: 100, flexGrow: 1 },
+  listContent: { paddingHorizontal: ScreenPadding, paddingBottom: 100, flexGrow: 1 },
   
   groupCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: Colors.light.card,
+    padding: 18,
+    borderRadius: Radius.lg,
     marginBottom: 12,
-    elevation: 2,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    ...Shadows.sm,
   },
   groupIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: '#EEF2FF',
+    width: 50,
+    height: 50,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.light.tintMuted,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
   groupInfo: { flex: 1 },
-  groupName: { fontSize: 17, fontWeight: '700', color: Colors.light.text, marginBottom: 4 },
-  groupDesc: { fontSize: 13, color: Colors.light.textSecondary },
+  groupName: { fontSize: 17, fontFamily: FontFamily.bold, color: Colors.light.text, marginBottom: 4, letterSpacing: -0.2 },
+  groupDesc: { fontSize: 13, fontFamily: FontFamily.medium, color: Colors.light.textSecondary },
 
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: Colors.light.text, marginTop: 24 },
-  emptySub: { fontSize: 14, color: Colors.light.textSecondary, textAlign: 'center', marginTop: 8, paddingHorizontal: 32, lineHeight: 22 },
+  emptyTitle: { fontSize: 20, fontFamily: FontFamily.bold, color: Colors.light.text, marginTop: 24 },
+  emptySub: { fontSize: 14, fontFamily: FontFamily.medium, color: Colors.light.textSecondary, textAlign: 'center', marginTop: 8, paddingHorizontal: 32, lineHeight: 22 },
 
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  filterToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 2 },
-  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
-  filterBtnActive: { backgroundColor: '#FFF', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
-  filterText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  filterToggle: { flexDirection: 'row', backgroundColor: Colors.light.backgroundSubtle, borderRadius: Radius.xs, padding: 2 },
+  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radius.xs },
+  filterBtnActive: { backgroundColor: Colors.light.card, ...Shadows.sm },
+  filterText: { fontSize: 13, fontFamily: FontFamily.semiBold, color: Colors.light.textSecondary },
   filterTextActive: { color: Colors.light.text },
 
   heroArea: {
@@ -171,13 +169,13 @@ const styles = StyleSheet.create({
   },
   heroCircle: {
     width: 110, height: 110, borderRadius: 55,
-    backgroundColor: '#EEF2FF', justifyContent: 'center', alignItems: 'center',
-    elevation: 6, shadowColor: '#6366F1', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.18, shadowRadius: 12,
+    backgroundColor: Colors.light.tintMuted, justifyContent: 'center', alignItems: 'center',
+    ...Shadows.tint,
   },
   orbSmall: {
     position: 'absolute', width: 44, height: 44, borderRadius: 22,
-    backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center',
-    elevation: 3, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4,
+    backgroundColor: Colors.light.successLight, justifyContent: 'center', alignItems: 'center',
+    ...Shadows.md,
   },
 
   fab: {
@@ -186,16 +184,12 @@ const styles = StyleSheet.create({
     right: 24,
     width: 60,
     height: 60,
-    borderRadius: 30,
-    elevation: 8,
-    shadowColor: '#6366F1',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    borderRadius: 22,
+    ...Shadows.tint,
   },
   fabGradient: {
     flex: 1,
-    borderRadius: 30,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -1,11 +1,18 @@
-import { Colors } from "@/constants/theme";
+import {
+  Colors,
+  FontFamily,
+  Radius,
+  ScreenPadding,
+  Shadows,
+  TypeScale,
+} from "@/constants/theme";
 import { db } from "@/db";
 import { categories as dbCategories } from "@/db/schema";
 import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
-import { eq } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useMemo } from "react";
 import {
@@ -32,13 +39,16 @@ export default function DashboardScreen() {
     plannedPayments,
     debts,
     goals,
+    budgets,
   } = useStore();
 
   useEffect(() => {
     try {
-      db.run(sql`ALTER TABLE group_members ADD COLUMN is_fund INTEGER DEFAULT 0`);
+      db.run(
+        sql`ALTER TABLE group_members ADD COLUMN is_fund INTEGER DEFAULT 0`,
+      );
     } catch (e) {
-      console.log('Column is_fund already exists or error:', e);
+      console.log("Column is_fund already exists or error:", e);
     }
 
     // Patch the icon in the database for users who already seeded
@@ -109,64 +119,30 @@ export default function DashboardScreen() {
       .slice(0, 5);
   }, [transactions, categories]);
 
-  // 1. Safe to Spend
-  const safeToSpend = useMemo(() => {
+  // 1. Daily Budgets
+  const dailyBudgets = useMemo(() => {
     const now = new Date();
-    const daysInMonth = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-    ).getDate();
-    const daysLeft = Math.max(1, daysInMonth - now.getDate() + 1);
-
-    const activeBills = plannedPayments.reduce((sum, p) => sum + p.amount, 0);
-
-    // If they have income logged this month, use strict budgeting
-    let available = 0;
-    if (monthStats.income > 0) {
-      available = monthStats.income - monthStats.expense - activeBills;
-    } else {
-      // Fallback: use total bank balance
-      available = totalBalance - activeBills;
-    }
-
-    return available > 0 ? available / daysLeft : 0;
-  }, [monthStats, plannedPayments, totalBalance]);
-
-  // 2. Financial Health Score
-  const healthScore = useMemo(() => {
-    if (monthStats.income === 0)
-      return {
-        msg: "Keep track of your spending!",
-        color: "#42A5F5",
-        icon: "information-circle",
-      };
-    const saved = monthStats.income - monthStats.expense;
-    const rate = (saved / monthStats.income) * 100;
-    if (rate >= 20)
-      return {
-        msg: `🔥 Amazing! Saving ${rate.toFixed(0)}% this month.`,
-        color: "#66BB6A",
-        icon: "flame",
-      };
-    if (rate >= 5)
-      return {
-        msg: `👍 Good job! Saving ${rate.toFixed(0)}% this month.`,
-        color: "#42A5F5",
-        icon: "thumbs-up",
-      };
-    if (rate >= 0)
-      return {
-        msg: `⚠️ You are breaking even. Watch your expenses.`,
-        color: "#FFA726",
-        icon: "warning",
-      };
-    return {
-      msg: `🚨 You're overspending by ${Math.abs(rate).toFixed(0)}%!`,
-      color: "#EF5350",
-      icon: "alert-circle",
-    };
-  }, [monthStats]);
+    return budgets
+      .filter((b: any) => b.period === "daily")
+      .map((b: any) => {
+        const cat = categories.find((c: any) => c.id === b.categoryId);
+        const startDate = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        ).getTime();
+        const spent = transactions
+          .filter(
+            (t: any) =>
+              t.type === "expense" &&
+              t.date >= startDate &&
+              (!b.categoryId || t.categoryId === b.categoryId),
+          )
+          .reduce((s: number, t: any) => s + t.amount, 0);
+        const pct = Math.min((spent / b.amount) * 100, 100);
+        return { ...b, cat, spent, pct };
+      });
+  }, [budgets, transactions, categories]);
 
   // 3. Upcoming Bills
   const upcomingBills = useMemo(() => {
@@ -259,7 +235,12 @@ export default function DashboardScreen() {
         </View>
 
         {/* Total Balance Card */}
-        <View style={styles.balanceCard}>
+        <LinearGradient
+          colors={["#6366F1", "#7C3AED", "#6366F1"]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.balanceCard}
+        >
           <View style={styles.balanceCardInner}>
             <Text style={styles.balanceLabel}>Total Balance</Text>
             <Text style={styles.balanceAmount}>
@@ -271,14 +252,14 @@ export default function DashboardScreen() {
                 <View
                   style={[
                     styles.incExpIcon,
-                    { backgroundColor: "rgba(102,187,106,0.2)" },
+                    { backgroundColor: "rgba(255,255,255,0.15)" },
                   ]}
                 >
-                  <Ionicons name="arrow-down" size={16} color="#66BB6A" />
+                  <Ionicons name="arrow-down" size={16} color="#86EFAC" />
                 </View>
                 <View>
                   <Text style={styles.incExpLabel}>Income</Text>
-                  <Text style={[styles.incExpAmount, { color: "#66BB6A" }]}>
+                  <Text style={[styles.incExpAmount, { color: "#86EFAC" }]}>
                     {formatCurrency(monthStats.income, currency.code)}
                   </Text>
                 </View>
@@ -288,21 +269,21 @@ export default function DashboardScreen() {
                 <View
                   style={[
                     styles.incExpIcon,
-                    { backgroundColor: "rgba(239,83,80,0.2)" },
+                    { backgroundColor: "rgba(255,255,255,0.15)" },
                   ]}
                 >
-                  <Ionicons name="arrow-up" size={16} color="#EF5350" />
+                  <Ionicons name="arrow-up" size={16} color="#FCA5A5" />
                 </View>
                 <View>
                   <Text style={styles.incExpLabel}>Expense</Text>
-                  <Text style={[styles.incExpAmount, { color: "#EF5350" }]}>
+                  <Text style={[styles.incExpAmount, { color: "#FCA5A5" }]}>
                     {formatCurrency(monthStats.expense, currency.code)}
                   </Text>
                 </View>
               </View>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* Quick Actions */}
         <View style={styles.quickActions}>
@@ -391,37 +372,84 @@ export default function DashboardScreen() {
           </View>
         )}
 
-        {/* 1. Safe To Spend (Simple Text) */}
-        <View style={styles.safeToSpendSection}>
-          <Text style={styles.safeToSpendText}>
-            Daily Safe to Spend:{" "}
-            <Text style={{ fontWeight: "800", color: Colors.light.tint }}>
-              {formatCurrency(safeToSpend, currency.code)}
-            </Text>
-          </Text>
-        </View>
-
-        {/* 3. Financial Health Streak */}
-        <View
-          style={[
-            styles.healthCard,
-            { backgroundColor: healthScore.color + "15" },
-          ]}
-        >
-          <Ionicons
-            name={healthScore.icon as any}
-            size={24}
-            color={healthScore.color}
-          />
-          <Text style={[styles.healthMsg, { color: healthScore.color }]}>
-            {healthScore.msg}
-          </Text>
-        </View>
+        {/* 1. Daily Budgets */}
+        {dailyBudgets.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Daily Budget</Text>
+            </View>
+            {dailyBudgets.map((b: any) => (
+              <View key={b.id} style={styles.budgetCard}>
+                <View style={styles.budgetHeader}>
+                  <View style={styles.budgetLeft}>
+                    <View
+                      style={[
+                        styles.budgetIcon,
+                        {
+                          backgroundColor:
+                            (b.cat?.color || Colors.light.tint) + "20",
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={(b.cat?.icon || "pie-chart") as any}
+                        size={16}
+                        color={b.cat?.color || Colors.light.tint}
+                      />
+                    </View>
+                    <View>
+                      <Text style={styles.budgetName}>
+                        {b.cat?.name || "Daily Budget"}
+                      </Text>
+                      <Text style={styles.budgetPeriod}>Daily</Text>
+                    </View>
+                  </View>
+                  <View style={styles.budgetRight}>
+                    <Text style={styles.budgetSpent}>
+                      {formatCurrency(b.spent, currency.code)}
+                    </Text>
+                    <Text style={styles.budgetLimit}>
+                      of {formatCurrency(b.amount, currency.code)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.barBg}>
+                  <View
+                    style={[
+                      styles.barFill,
+                      {
+                        width: `${b.pct}%`,
+                        backgroundColor:
+                          b.pct >= 90
+                            ? "#EF5350"
+                            : b.pct >= 70
+                              ? "#FFA726"
+                              : "#66BB6A",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text
+                  style={[
+                    styles.budgetRemaining,
+                    { color: b.pct >= 90 ? "#EF5350" : "#66BB6A" },
+                  ]}
+                >
+                  {b.pct >= 100
+                    ? "Over budget!"
+                    : `${formatCurrency(b.amount - b.spent, currency.code)} remaining`}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
 
         {/* 2. Upcoming Bills */}
         {upcomingBills.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Upcoming Bills</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Upcoming Bills</Text>
+            </View>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -455,7 +483,9 @@ export default function DashboardScreen() {
         {/* 4. Active Goal */}
         {activeGoal && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Goal Progress</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Goal Progress</Text>
+            </View>
             <TouchableOpacity
               style={styles.activeGoalCard}
               onPress={() =>
@@ -503,7 +533,9 @@ export default function DashboardScreen() {
         {/* 5. Debt Overview */}
         {(debtStats.toCollect > 0 || debtStats.toPay > 0) && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Debts & Loans</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Debts & Loans</Text>
+            </View>
             <View style={styles.debtRow}>
               <View style={[styles.debtBox, { backgroundColor: "#F0FFF4" }]}>
                 <Text style={styles.debtBoxLabel}>To Collect</Text>
@@ -524,7 +556,9 @@ export default function DashboardScreen() {
         {/* Spending by Category */}
         {categorySpending.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Top Spending This Month</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Top Spending This Month</Text>
+            </View>
             {categorySpending.map((cs, i) => {
               const maxAmount = categorySpending[0]?.amount || 1;
               const barWidth = (cs.amount / maxAmount) * 100;
@@ -641,7 +675,7 @@ export default function DashboardScreen() {
           )}
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
 
       {/* FAB */}
@@ -669,156 +703,156 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingHorizontal: ScreenPadding,
+    paddingTop: 10,
+    paddingBottom: 20,
   },
-  greeting: { fontSize: 26, fontWeight: "800", color: Colors.light.text },
+  greeting: { ...TypeScale.title, color: Colors.light.text },
   headerSubtitle: {
     fontSize: 14,
+    fontFamily: FontFamily.medium,
     color: Colors.light.textSecondary,
-    marginTop: 2,
+    marginTop: 4,
   },
   notifBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#FFF",
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.light.card,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    ...Shadows.sm,
   },
 
   balanceCard: {
-    marginHorizontal: 20,
-    borderRadius: 24,
+    marginHorizontal: ScreenPadding,
+    borderRadius: Radius.xl,
     overflow: "hidden",
-    marginBottom: 20,
-    backgroundColor: Colors.light.tint,
-    elevation: 6,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    marginBottom: 24,
+    ...Shadows.tint,
   },
-  balanceCardInner: { padding: 24 },
+  balanceCardInner: { padding: 28 },
   balanceLabel: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 14,
-    fontWeight: "600",
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 13,
+    fontFamily: FontFamily.semiBold,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
   },
   balanceAmount: {
     color: "#FFF",
-    fontSize: 36,
-    fontWeight: "800",
-    marginTop: 4,
-    marginBottom: 20,
+    ...TypeScale.heroNumber,
+    marginTop: 6,
+    marginBottom: 24,
+    letterSpacing: -0.5,
   },
   incExpRow: { flexDirection: "row", alignItems: "center" },
   incExpItem: { flexDirection: "row", alignItems: "center", flex: 1, gap: 10 },
   incExpIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: "center",
     alignItems: "center",
   },
   incExpLabel: {
-    color: "rgba(255,255,255,0.6)",
+    color: "rgba(255,255,255,0.55)",
     fontSize: 12,
-    fontWeight: "500",
+    fontFamily: FontFamily.medium,
   },
-  incExpAmount: { fontSize: 16, fontWeight: "700" },
+  incExpAmount: { fontSize: 16, fontFamily: FontFamily.bold },
   incExpDivider: {
     width: 1,
     height: 36,
-    backgroundColor: "rgba(255,255,255,0.15)",
-    marginHorizontal: 12,
+    backgroundColor: "rgba(255,255,255,0.12)",
+    marginHorizontal: 14,
   },
 
   quickActions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 24,
+    paddingHorizontal: ScreenPadding,
+    marginBottom: 28,
   },
-  quickAction: { alignItems: "center", gap: 6 },
+  quickAction: { alignItems: "center", gap: 8 },
   quickActionIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 16,
+    width: 56,
+    height: 56,
+    borderRadius: Radius.md,
     justifyContent: "center",
     alignItems: "center",
+    ...Shadows.sm,
   },
   quickActionText: {
     fontSize: 12,
-    fontWeight: "600",
+    fontFamily: FontFamily.semiBold,
     color: Colors.light.textSecondary,
   },
 
-  section: { paddingHorizontal: 20, marginBottom: 24 },
+  section: { paddingHorizontal: ScreenPadding, marginBottom: 15 },
   sectionHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 10,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 17,
+    fontFamily: FontFamily.bold,
     color: Colors.light.text,
-    marginBottom: 4,
+    letterSpacing: -0.2,
   },
-  seeAll: { fontSize: 14, fontWeight: "600", color: Colors.light.tint },
+  seeAll: {
+    fontSize: 14,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.tint,
+  },
 
   accountScroll: { marginBottom: 4 },
   accountCard: {
-    width: 160,
-    backgroundColor: "#FFF",
-    borderRadius: 16,
-    padding: 16,
+    width: 165,
+    backgroundColor: Colors.light.card,
+    borderRadius: Radius.lg,
+    padding: 18,
     marginRight: 12,
-    borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    ...Shadows.sm,
   },
   accountCardTop: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 10,
+    marginBottom: 14,
   },
   accountType: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "#94A3B8",
-    letterSpacing: 0.5,
+    ...TypeScale.overline,
+    color: Colors.light.textTertiary,
   },
   accountName: {
     fontSize: 14,
-    fontWeight: "600",
-    color: Colors.light.text,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.textSecondary,
     marginBottom: 4,
   },
-  accountBalance: { fontSize: 18, fontWeight: "800", color: Colors.light.text },
+  accountBalance: {
+    fontSize: 18,
+    fontFamily: FontFamily.extraBold,
+    color: Colors.light.text,
+  },
 
   catSpendRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 14,
-    gap: 12,
+    marginBottom: 16,
+    gap: 14,
   },
   catSpendIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.sm,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -826,150 +860,227 @@ const styles = StyleSheet.create({
   catSpendTextRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  catSpendName: { fontSize: 14, fontWeight: "600", color: Colors.light.text },
-  catSpendAmount: { fontSize: 14, fontWeight: "700", color: Colors.light.text },
-  catSpendBarBg: { height: 6, backgroundColor: "#F1F5F9", borderRadius: 3 },
-  catSpendBar: { height: 6, borderRadius: 3 },
+  catSpendName: {
+    fontSize: 14,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.text,
+  },
+  catSpendAmount: {
+    fontSize: 14,
+    fontFamily: FontFamily.bold,
+    color: Colors.light.text,
+  },
+  catSpendBarBg: {
+    height: 5,
+    backgroundColor: Colors.light.backgroundSubtle,
+    borderRadius: 3,
+  },
+  catSpendBar: { height: 5, borderRadius: 3 },
 
   txnRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
+    paddingVertical: 10,
+    gap: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.light.borderLight,
   },
   txnIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: Radius.md,
     justifyContent: "center",
     alignItems: "center",
   },
   txnInfo: { flex: 1 },
-  txnName: { fontSize: 15, fontWeight: "600", color: Colors.light.text },
-  txnDate: { fontSize: 12, color: Colors.light.textSecondary, marginTop: 2 },
-  txnAmount: { fontSize: 16, fontWeight: "700" },
+  txnName: {
+    fontSize: 15,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.text,
+  },
+  txnDate: {
+    fontSize: 12,
+    fontFamily: FontFamily.medium,
+    color: Colors.light.textTertiary,
+    marginTop: 3,
+  },
+  txnAmount: { fontSize: 16, fontFamily: FontFamily.bold },
 
-  emptyState: { alignItems: "center", paddingVertical: 40 },
+  emptyState: { alignItems: "center", paddingVertical: 48 },
   emptyText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#94A3B8",
-    marginTop: 12,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.textTertiary,
+    marginTop: 16,
   },
-  emptySubtext: { fontSize: 13, color: "#CBD5E1", marginTop: 4 },
+  emptySubtext: {
+    fontSize: 13,
+    fontFamily: FontFamily.medium,
+    color: "#CBD5E1",
+    marginTop: 6,
+  },
 
   fab: {
     position: "absolute",
-    bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 18,
+    bottom: 24,
+    right: 24,
+    width: 58,
+    height: 58,
+    borderRadius: 20,
     backgroundColor: Colors.light.tint,
     justifyContent: "center",
     alignItems: "center",
-    elevation: 8,
-    shadowColor: Colors.light.tint,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    ...Shadows.tint,
   },
 
-  // New Widgets Styles
-  safeToSpendSection: { paddingHorizontal: 20, marginBottom: 16 },
-  safeToSpendText: { fontSize: 16, color: "#64748B", fontWeight: "500" },
-
-  healthCard: {
-    marginHorizontal: 20,
-    marginBottom: 24,
-    padding: 16,
-    borderRadius: 16,
+  // Widgets
+  budgetCard: {
+    backgroundColor: "#FFF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    elevation: 1,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  budgetHeader: {
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    gap: 12,
+    marginBottom: 10,
   },
-  healthMsg: { fontSize: 14, fontWeight: "600", flex: 1 },
+  budgetLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  budgetIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  budgetName: {
+    fontSize: 14,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.text,
+  },
+  budgetPeriod: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: "#94A3B8",
+    marginTop: 2,
+  },
+  budgetRight: { alignItems: "flex-end" },
+  budgetSpent: {
+    fontSize: 15,
+    fontFamily: FontFamily.bold,
+    color: Colors.light.text,
+  },
+  budgetLimit: {
+    fontSize: 11,
+    fontFamily: FontFamily.regular,
+    color: "#94A3B8",
+  },
+  barBg: {
+    height: 6,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 3,
+    marginBottom: 6,
+  },
+  barFill: { height: 6, borderRadius: 3 },
+  budgetRemaining: { fontSize: 12, fontFamily: FontFamily.semiBold },
 
   billsScroll: { paddingTop: 4, paddingBottom: 12 },
   billCard: {
-    width: 140,
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 16,
+    width: 150,
+    backgroundColor: Colors.light.card,
+    padding: 18,
+    borderRadius: Radius.lg,
     marginRight: 12,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    ...Shadows.sm,
   },
   billIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.sm,
     backgroundColor: "#F5F0FF",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 14,
   },
   billName: {
     fontSize: 14,
-    fontWeight: "600",
+    fontFamily: FontFamily.semiBold,
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   billAmount: {
-    fontSize: 16,
-    fontWeight: "800",
+    fontSize: 17,
+    fontFamily: FontFamily.extraBold,
     color: Colors.light.text,
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  billDue: { fontSize: 12, color: "#EF5350", fontWeight: "500" },
+  billDue: {
+    fontSize: 12,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.danger,
+  },
 
   activeGoalCard: {
-    backgroundColor: "#FFF",
-    padding: 16,
-    borderRadius: 16,
+    backgroundColor: Colors.light.card,
+    padding: 18,
+    borderRadius: Radius.lg,
     flexDirection: "row",
     alignItems: "center",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+    ...Shadows.sm,
   },
   goalIconMini: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 42,
+    height: 42,
+    borderRadius: Radius.sm,
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
   activeGoalName: {
     fontSize: 15,
-    fontWeight: "700",
+    fontFamily: FontFamily.bold,
     color: Colors.light.text,
     marginBottom: 8,
   },
   goalMiniBarBg: {
     width: "100%",
-    height: 6,
-    backgroundColor: "#F1F5F9",
+    height: 5,
+    backgroundColor: Colors.light.backgroundSubtle,
     borderRadius: 3,
   },
-  goalMiniBarFill: { height: 6, borderRadius: 3 },
-  activeGoalPct: { fontSize: 16, fontWeight: "800", color: Colors.light.text },
+  goalMiniBarFill: { height: 5, borderRadius: 3 },
+  activeGoalPct: {
+    fontSize: 16,
+    fontFamily: FontFamily.extraBold,
+    color: Colors.light.text,
+  },
 
   debtRow: { flexDirection: "row", gap: 12 },
-  debtBox: { flex: 1, padding: 16, borderRadius: 16, alignItems: "center" },
+  debtBox: {
+    flex: 1,
+    padding: 18,
+    borderRadius: Radius.lg,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: Colors.light.borderLight,
+  },
   debtBoxLabel: {
     fontSize: 13,
-    color: "#64748B",
-    fontWeight: "600",
-    marginBottom: 4,
+    fontFamily: FontFamily.semiBold,
+    color: Colors.light.textSecondary,
+    marginBottom: 6,
   },
-  debtBoxAmount: { fontSize: 18, fontWeight: "800" },
+  debtBoxAmount: { fontSize: 18, fontFamily: FontFamily.extraBold },
 });
