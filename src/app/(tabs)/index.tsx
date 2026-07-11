@@ -11,7 +11,7 @@ import { categories as dbCategories } from "@/db/schema";
 import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useEffect, useMemo } from "react";
@@ -43,13 +43,13 @@ export default function DashboardScreen() {
   } = useStore();
 
   useEffect(() => {
-    try {
-      db.run(
-        sql`ALTER TABLE group_members ADD COLUMN is_fund INTEGER DEFAULT 0`,
-      );
-    } catch (e) {
-      console.log("Column is_fund already exists or error:", e);
-    }
+    // try {
+    //   db.run(
+    //     sql`ALTER TABLE group_members ADD COLUMN is_fund INTEGER DEFAULT 0`,
+    //   );
+    // } catch (e) {
+    //   console.log("Column is_fund already exists or error:", e);
+    // }
 
     // Patch the icon in the database for users who already seeded
     try {
