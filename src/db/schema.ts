@@ -176,6 +176,7 @@ export const groups = sqliteTable('groups', {
   coverImage: text('cover_image'),
   currency: text('currency').notNull().default('USD'),
   createdAt: integer('created_at').notNull(),
+  isArchived: integer('is_archived', { mode: 'boolean' }).default(false),
 });
 
 export const groupMembers = sqliteTable('group_members', {

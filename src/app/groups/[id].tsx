@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, Image, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, Image, ScrollView, Dimensions, Share, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
@@ -24,6 +24,8 @@ export default function GroupScreen() {
   const [allParticipants, setAllParticipants] = React.useState<any[]>([]);
   const [settlements, setSettlements] = React.useState<any[]>([]);
   const [selectedExpense, setSelectedExpense] = React.useState<any>(null);
+  const [activeTab, setActiveTab] = React.useState<'expenses' | 'activity'>('expenses');
+  const [expandedSection, setExpandedSection] = React.useState<'suggested' | 'actual' | null>('actual');
 
   useFocusEffect(
     React.useCallback(() => {
@@ -75,6 +77,194 @@ export default function GroupScreen() {
     return simplifyDebts(balances);
   }, [balances]);
 
+  const actualRepayments = React.useMemo(() => {
+    if (!members || !allParticipants) return [];
+
+    // 1. Combine all events chronologically to find the last fully settled time
+    const events: { date: number, type: 'expense' | 'settlement', data: any }[] = [];
+    expenses.forEach(e => events.push({ date: e.date, type: 'expense', data: e }));
+    settlements.forEach(s => events.push({ date: s.date, type: 'settlement', data: s }));
+    events.sort((a, b) => a.date - b.date);
+
+    let lastSettledTime = 0;
+    const runningBals: Record<string, number> = {};
+    members.forEach(m => runningBals[m.id] = 0);
+
+    events.forEach(ev => {
+      if (ev.type === 'expense') {
+        const parts = allParticipants.filter(p => p.expenseId === ev.data.id);
+        parts.forEach(p => {
+          if (runningBals[p.memberId] !== undefined) {
+            runningBals[p.memberId] += (p.paidShare - p.owedShare);
+          }
+        });
+      } else if (ev.type === 'settlement') {
+        const s = ev.data;
+        if (runningBals[s.fromMemberId] !== undefined) runningBals[s.fromMemberId] += s.amount;
+        if (runningBals[s.toMemberId] !== undefined) runningBals[s.toMemberId] -= s.amount;
+      }
+
+      // Check if settled
+      const isSettled = Object.values(runningBals).every(b => Math.abs(b) < 0.01);
+      if (isSettled) {
+        lastSettledTime = ev.date;
+      }
+    });
+
+    // 2. Compute pairwise debts ONLY using events after lastSettledTime
+    const activeExpenses = expenses.filter(e => e.date > lastSettledTime);
+    const activeSettlements = settlements.filter(s => s.date > lastSettledTime);
+
+    const pairwise: Record<string, Record<string, number>> = {};
+    members.forEach(m1 => {
+      pairwise[m1.id] = {};
+      members.forEach(m2 => {
+        pairwise[m1.id][m2.id] = 0;
+      });
+    });
+
+    activeExpenses.forEach(e => {
+      const parts = allParticipants.filter(p => p.expenseId === e.id);
+      const totalPaid = parts.reduce((sum, p) => sum + p.paidShare, 0);
+      if (totalPaid === 0) return;
+      
+      parts.forEach(ower => {
+        if (ower.owedShare > 0) {
+          parts.forEach(payer => {
+            if (payer.paidShare > 0 && ower.memberId !== payer.memberId) {
+              const amountOwedToPayer = ower.owedShare * (payer.paidShare / totalPaid);
+              pairwise[ower.memberId][payer.memberId] += amountOwedToPayer;
+            }
+          });
+        }
+      });
+    });
+
+    activeSettlements.forEach(s => {
+      if (pairwise[s.fromMemberId] && pairwise[s.fromMemberId][s.toMemberId] !== undefined) {
+        pairwise[s.fromMemberId][s.toMemberId] -= s.amount;
+      }
+    });
+
+    const instructions: { from: string, to: string, amount: number }[] = [];
+    const processed = new Set<string>();
+    
+    members.forEach(m1 => {
+      members.forEach(m2 => {
+        if (m1.id === m2.id) return;
+        const pairKey = [m1.id, m2.id].sort().join('-');
+        if (processed.has(pairKey)) return;
+        processed.add(pairKey);
+
+        const m1OwesM2 = pairwise[m1.id][m2.id];
+        const m2OwesM1 = pairwise[m2.id][m1.id];
+        
+        const net = m1OwesM2 - m2OwesM1;
+        if (net > 0.01) {
+          instructions.push({ from: m1.id, to: m2.id, amount: net });
+        } else if (net < -0.01) {
+          instructions.push({ from: m2.id, to: m1.id, amount: Math.abs(net) });
+        }
+      });
+    });
+
+    return instructions;
+  }, [members, allParticipants, expenses, settlements]);
+
+
+
+  const activityLog = React.useMemo(() => {
+    if (!group) return [];
+    const logs = [];
+    logs.push({ id: 'create', type: 'create', date: group.createdAt, text: 'Group created' });
+    
+    expenses.forEach(e => {
+      logs.push({ id: `exp-${e.id}`, type: 'expense', date: e.date, text: `Added expense: ${e.description}` });
+    });
+
+    settlements.forEach(s => {
+      const fromName = members.find(m => m.id === s.fromMemberId)?.name || 'Someone';
+      const toName = members.find(m => m.id === s.toMemberId)?.name || 'Someone';
+      logs.push({ id: `set-${s.id}`, type: 'settlement', date: s.date, text: `${fromName} paid ${toName} $${s.amount.toFixed(2)}` });
+    });
+
+    return logs.sort((a, b) => b.date - a.date);
+  }, [group, expenses, settlements, members]);
+
+  const handleShare = async () => {
+    if (!group) return;
+    try {
+      let report = `🏕️ Group Report: ${group.name}\n\n`;
+      
+      if (expenses.length > 0) {
+        report += `Expense Details:\n`;
+        expenses.forEach(e => {
+          const parts = allParticipants.filter(p => p.expenseId === e.id);
+          const payers = parts.filter(p => p.paidShare > 0);
+          const payerNames = payers.map(p => members.find(m => m.id === p.memberId)?.name || 'Someone').join(', ');
+          
+          const cat = expenseCategories.find(c => c.id === e.categoryId);
+          const catName = cat ? cat.name : 'Expense';
+          const title = e.description && e.description.toLowerCase() !== 'group expense' 
+            ? `${catName} - ${e.description}` 
+            : catName;
+
+          report += `- ${title}: $${e.totalAmount.toFixed(2)} (paid by ${payerNames})\n`;
+        });
+        report += `\n`;
+      }
+
+      const totalExp = expenses.reduce((sum, e) => sum + e.totalAmount, 0);
+      report += `Total Expenses: $${totalExp.toFixed(2)}\n\n`;
+      
+      report += `Final Balances:\n`;
+      members.forEach(m => {
+        const bal = balances[m.id] || 0;
+        if (bal > 0.01) report += `- ${m.name}: +$${bal.toFixed(2)} (Gets back)\n`;
+        else if (bal < -0.01) report += `- ${m.name}: -$${Math.abs(bal).toFixed(2)} (Owes)\n`;
+        else report += `- ${m.name}: Settled up\n`;
+      });
+
+      if (suggestedRepayments.length > 0) {
+        report += `\nSuggested Repayments:\n`;
+        suggestedRepayments.forEach(rep => {
+          const fromName = members.find(m => m.id === rep.from)?.name;
+          const toName = members.find(m => m.id === rep.to)?.name;
+          report += `- ${fromName} pays ${toName} $${rep.amount.toFixed(2)}\n`;
+        });
+      } else {
+        report += `\nAll debts are settled! 🎉\n`;
+      }
+      
+      report += `\nGenerated by Antigravity Expense Tracker`;
+      
+      await Share.share({ message: report });
+    } catch (error) {
+      console.error('Error sharing', error);
+    }
+  };
+
+  const handleArchiveToggle = async () => {
+    if (!group) return;
+    
+    // Validate if archiving
+    if (!group.isArchived) {
+      const hasDebts = Object.values(balances).some(b => Math.abs(b) > 0.01);
+      if (hasDebts) {
+        Alert.alert('Cannot Archive', 'All debts must be settled before archiving this group.');
+        return;
+      }
+    }
+    
+    try {
+      await db.update(groups).set({ isArchived: !group.isArchived }).where(eq(groups.id, group.id));
+      setGroup({ ...group, isArchived: !group.isArchived });
+      Alert.alert('Success', `Group ${group.isArchived ? 'unarchived' : 'archived'} successfully.`);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update group archive status.');
+    }
+  };
+
   if (!group) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -106,11 +296,13 @@ export default function GroupScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.light.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{group.name}</Text>
-        <View style={{ width: 32 }} /> 
+        <TouchableOpacity onPress={handleShare} style={styles.backBtn}>
+          <Ionicons name="share-outline" size={24} color={Colors.light.text} />
+        </TouchableOpacity>
       </View>
 
       <FlatList
-        data={expenses}
+        data={activeTab === 'expenses' ? expenses : activityLog}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={() => (
@@ -156,35 +348,127 @@ export default function GroupScreen() {
             </View>
 
             {suggestedRepayments.length > 0 && (
-              <>
-                <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Suggested Repayments</Text>
-                <View style={styles.balancesCard}>
-                  {suggestedRepayments.map((rep, idx) => {
-                    const fromMember = members.find(m => m.id === rep.from);
-                    const toMember = members.find(m => m.id === rep.to);
-                    
-                    return (
-                      <View key={idx} style={styles.repaymentRow}>
-                        <Text style={styles.repaymentText}>
-                          <Text style={{ fontWeight: '700' }}>{fromMember?.isUser ? 'You' : fromMember?.name}</Text>
-                          {' pays '}
-                          <Text style={{ fontWeight: '700' }}>{toMember?.isUser ? 'You' : toMember?.name}</Text>
-                        </Text>
-                        <Text style={styles.repaymentAmount}>${rep.amount.toFixed(2)}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              </>
+              <View style={{ marginTop: 24 }}>
+                <TouchableOpacity 
+                  style={styles.sectionHeaderWrap} 
+                  onPress={() => setExpandedSection(expandedSection === 'suggested' ? null : 'suggested')}
+                >
+                  <Text style={styles.sectionTitle}>Suggested Repayments (Minimal)</Text>
+                  <Ionicons name={expandedSection === 'suggested' ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
+                </TouchableOpacity>
+                {expandedSection === 'suggested' && (
+                  <View style={styles.balancesCard}>
+                    {suggestedRepayments.map((rep, idx) => {
+                      const fromMember = members.find(m => m.id === rep.from);
+                      const toMember = members.find(m => m.id === rep.to);
+                      
+                      return (
+                        <View key={idx} style={styles.repaymentRow}>
+                          <Text style={styles.repaymentText}>
+                            <Text style={{ fontWeight: '700' }}>{fromMember?.isUser ? 'You' : fromMember?.name}</Text>
+                            {' pay '}
+                            <Text style={{ fontWeight: '700' }}>{toMember?.isUser ? 'You' : toMember?.name}</Text>
+                          </Text>
+                          <Text style={styles.repaymentAmount}>${rep.amount.toFixed(2)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: 24 }]}>Recent Expenses</Text>
-            {expenses?.length === 0 && (
+            {actualRepayments.length > 0 && (
+              <View style={{ marginTop: 16 }}>
+                <TouchableOpacity 
+                  style={styles.sectionHeaderWrap} 
+                  onPress={() => setExpandedSection(expandedSection === 'actual' ? null : 'actual')}
+                >
+                  <Text style={styles.sectionTitle}>Actual Repayments (Exact)</Text>
+                  <Ionicons name={expandedSection === 'actual' ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
+                </TouchableOpacity>
+                {expandedSection === 'actual' && (
+                  <View style={styles.balancesCard}>
+                    {actualRepayments.map((rep, idx) => {
+                      const fromMember = members.find(m => m.id === rep.from);
+                      const toMember = members.find(m => m.id === rep.to);
+                      
+                      return (
+                        <View key={idx} style={styles.repaymentRow}>
+                          <Text style={styles.repaymentText}>
+                            <Text style={{ fontWeight: '700' }}>{fromMember?.isUser ? 'You' : fromMember?.name}</Text>
+                            {' pay '}
+                            <Text style={{ fontWeight: '700' }}>{toMember?.isUser ? 'You' : toMember?.name}</Text>
+                          </Text>
+                          <Text style={styles.repaymentAmount}>${rep.amount.toFixed(2)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </View>
+            )}
+
+            <View style={styles.tabToggle}>
+              <TouchableOpacity 
+                style={[styles.tabBtn, activeTab === 'expenses' && styles.tabBtnActive]}
+                onPress={() => setActiveTab('expenses')}
+              >
+                <Text style={[styles.tabText, activeTab === 'expenses' && styles.tabTextActive]}>Expenses</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.tabBtn, activeTab === 'activity' && styles.tabBtnActive]}
+                onPress={() => setActiveTab('activity')}
+              >
+                <Text style={[styles.tabText, activeTab === 'activity' && styles.tabTextActive]}>Activity Log</Text>
+              </TouchableOpacity>
+            </View>
+            
+            {activeTab === 'expenses' && expenses?.length === 0 && (
               <Text style={styles.emptyText}>No expenses yet. Add one to get started!</Text>
+            )}
+            {activeTab === 'activity' && activityLog?.length === 0 && (
+              <Text style={styles.emptyText}>No activity found.</Text>
             )}
           </View>
         )}
-        renderItem={renderExpense}
+        renderItem={({ item }) => {
+          if (activeTab === 'expenses') return renderExpense({ item });
+          
+          let icon = "information-circle";
+          let color = "#94A3B8";
+          if (item.type === 'expense') { icon = "receipt"; color = "#0EA5E9"; }
+          else if (item.type === 'settlement') { icon = "swap-horizontal"; color = "#10B981"; }
+          else if (item.type === 'create') { icon = "sparkles"; color = "#6366F1"; }
+
+          return (
+            <View style={styles.activityCard}>
+              <View style={[styles.activityIcon, { backgroundColor: color + '15' }]}>
+                <Ionicons name={icon as any} size={20} color={color} />
+              </View>
+              <View style={styles.activityInfo}>
+                <Text style={styles.activityText}>{item.text}</Text>
+                <Text style={styles.activityDate}>{new Date(item.date).toLocaleDateString()} at {new Date(item.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+              </View>
+            </View>
+          );
+        }}
+        ListFooterComponent={() => (
+          <View style={styles.footerSection}>
+            <TouchableOpacity 
+              style={[styles.archiveBtn, group.isArchived && styles.unarchiveBtn]}
+              onPress={handleArchiveToggle}
+            >
+              <Ionicons name={group.isArchived ? "folder-open-outline" : "archive-outline"} size={20} color={group.isArchived ? "#6366F1" : "#EF4444"} />
+              <Text style={[styles.archiveBtnText, group.isArchived && { color: '#6366F1' }]}>
+                {group.isArchived ? 'Unarchive Group' : 'Archive Group'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.archiveHelp}>
+              {group.isArchived ? 'This group is archived.' : 'If the group trip is over you can archive it, but all balances must be settled first.'}
+            </Text>
+          </View>
+        )}
       />
 
       <TouchableOpacity 
@@ -357,4 +641,22 @@ const styles = StyleSheet.create({
   breakdownOwed: { fontSize: 13, color: '#EF4444', fontWeight: '500' },
 
   receiptImage: { width: width - 40, height: (width - 40) * 1.5, borderRadius: 16, resizeMode: 'cover', backgroundColor: '#F1F5F9' },
+  
+  tabToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginTop: 24, marginBottom: 16 },
+  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
+  tabBtnActive: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 },
+  tabText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  tabTextActive: { color: Colors.light.text },
+
+  activityCard: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
+  activityIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
+  activityInfo: { flex: 1 },
+  activityText: { fontSize: 14, fontWeight: '600', color: Colors.light.text, marginBottom: 2 },
+  activityDate: { fontSize: 12, color: Colors.light.textSecondary },
+
+  footerSection: { marginTop: 32, marginBottom: 20, alignItems: 'center', paddingHorizontal: 20 },
+  archiveBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, paddingHorizontal: 24, borderRadius: 16, backgroundColor: '#FEF2F2', width: '100%', marginBottom: 12 },
+  unarchiveBtn: { backgroundColor: '#EEF2FF' },
+  archiveBtnText: { marginLeft: 8, fontSize: 15, fontWeight: '700', color: '#EF4444' },
+  archiveHelp: { fontSize: 12, color: '#94A3B8', textAlign: 'center', paddingHorizontal: 20 },
 });

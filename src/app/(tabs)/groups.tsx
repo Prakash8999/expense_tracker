@@ -14,6 +14,7 @@ const { width } = Dimensions.get('window');
 export default function GroupsScreen() {
   const router = useRouter();
   const [allGroups, setAllGroups] = React.useState<any[]>([]);
+  const [filterType, setFilterType] = React.useState<'active' | 'archived'>('active');
 
   useFocusEffect(
     React.useCallback(() => {
@@ -55,28 +56,44 @@ export default function GroupsScreen() {
       />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Groups</Text>
+        <View style={styles.headerTopRow}>
+          <Text style={styles.headerTitle}>Groups</Text>
+          <View style={styles.filterToggle}>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filterType === 'active' && styles.filterBtnActive]}
+              onPress={() => setFilterType('active')}
+            >
+              <Text style={[styles.filterText, filterType === 'active' && styles.filterTextActive]}>Active</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.filterBtn, filterType === 'archived' && styles.filterBtnActive]}
+              onPress={() => setFilterType('archived')}
+            >
+              <Text style={[styles.filterText, filterType === 'archived' && styles.filterTextActive]}>Archived</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
         <Text style={styles.headerSub}>
           Split expenses and settle up with friends.
         </Text>
       </View>
 
       <FlatList
-        data={allGroups}
+        data={filterType === 'active' ? allGroups.filter(g => !g.isArchived) : allGroups.filter(g => g.isArchived)}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={renderEmptyState}
         renderItem={({ item }) => (
           <TouchableOpacity 
-            style={styles.groupCard} 
+            style={[styles.groupCard, item.isArchived && { opacity: 0.7 }]} 
             activeOpacity={0.7}
             onPress={() => router.push(`/groups/${item.id}` as any)}
           >
-            <View style={styles.groupIcon}>
-              <Ionicons name="people" size={24} color="#6366F1" />
+            <View style={[styles.groupIcon, item.isArchived && { backgroundColor: '#F1F5F9' }]}>
+              <Ionicons name="people" size={24} color={item.isArchived ? "#94A3B8" : "#6366F1"} />
             </View>
             <View style={styles.groupInfo}>
-              <Text style={styles.groupName}>{item.name}</Text>
+              <Text style={[styles.groupName, item.isArchived && { color: '#64748B' }]}>{item.name}</Text>
               {item.description ? (
                 <Text style={styles.groupDesc} numberOfLines={1}>{item.description}</Text>
               ) : null}
@@ -140,6 +157,13 @@ const styles = StyleSheet.create({
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', marginTop: 40 },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: Colors.light.text, marginTop: 24 },
   emptySub: { fontSize: 14, color: Colors.light.textSecondary, textAlign: 'center', marginTop: 8, paddingHorizontal: 32, lineHeight: 22 },
+
+  headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  filterToggle: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 8, padding: 2 },
+  filterBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 },
+  filterBtnActive: { backgroundColor: '#FFF', elevation: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2 },
+  filterText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
+  filterTextActive: { color: Colors.light.text },
 
   heroArea: {
     alignItems: 'center', justifyContent: 'center',

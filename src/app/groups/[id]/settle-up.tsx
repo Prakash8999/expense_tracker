@@ -5,11 +5,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '@/db';
-import { groupMembers, groupSettlements, accounts, groups } from '@/db/schema';
+import { groupMembers, groupSettlements, accounts, groups, groupExpenseParticipants } from '@/db/schema';
 import { addTransaction as addTxn } from '@/db/queries';
 import { eq } from 'drizzle-orm';
 import * as Crypto from 'expo-crypto';
 import { useStore } from '@/store/useStore';
+import { simplifyDebts } from '@/utils/debtSimplification';
 
 export default function SettleUpScreen() {
   const router = useRouter();
@@ -25,6 +26,7 @@ export default function SettleUpScreen() {
   const [members, setMembers] = React.useState<any[]>([]);
   const [userAccounts, setUserAccounts] = React.useState<any[]>([]);
   const [groupName, setGroupName] = React.useState<string>('Group');
+  const [suggestedRepayments, setSuggestedRepayments] = React.useState<any[]>([]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -37,10 +39,39 @@ export default function SettleUpScreen() {
 
         const aData = await db.select().from(accounts);
         setUserAccounts(aData);
+        
+        // Calculate suggested repayments for autofill
+        const pData = await db.select().from(groupExpenseParticipants);
+        const sData = await db.select().from(groupSettlements).where(eq(groupSettlements.groupId, groupId));
+        
+        const bals: Record<string, number> = {};
+        mData.forEach(m => bals[m.id] = 0);
+        
+        pData.forEach(p => {
+          if (bals[p.memberId] !== undefined) {
+            bals[p.memberId] += (p.paidShare - p.owedShare);
+          }
+        });
+
+        sData.forEach(s => {
+          if (bals[s.fromMemberId] !== undefined) bals[s.fromMemberId] += s.amount;
+          if (bals[s.toMemberId] !== undefined) bals[s.toMemberId] -= s.amount;
+        });
+        
+        setSuggestedRepayments(simplifyDebts(bals));
       };
       fetchInitialData();
     }, [groupId])
   );
+
+  React.useEffect(() => {
+    if (payerId && payeeId) {
+      const suggestion = suggestedRepayments.find(r => r.from === payerId && r.to === payeeId);
+      if (suggestion && suggestion.amount > 0) {
+        setAmountStr(suggestion.amount.toFixed(2));
+      }
+    }
+  }, [payerId, payeeId, suggestedRepayments]);
 
   React.useEffect(() => {
     if (userAccounts && userAccounts.length > 0 && !selectedAccountId) {
