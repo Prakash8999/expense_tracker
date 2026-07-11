@@ -184,6 +184,7 @@ export const groupMembers = sqliteTable('group_members', {
   groupId: text('group_id').notNull(),
   name: text('name').notNull(),
   isUser: integer('is_user', { mode: 'boolean' }).default(false),
+  isFund: integer('is_fund', { mode: 'boolean' }).default(false),
 });
 
 export const groupExpenses = sqliteTable('group_expenses', {

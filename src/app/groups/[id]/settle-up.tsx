@@ -14,11 +14,11 @@ import { simplifyDebts } from '@/utils/debtSimplification';
 
 export default function SettleUpScreen() {
   const router = useRouter();
-  const { id: groupId } = useLocalSearchParams<{ id: string }>();
+  const { id: groupId, defaultPayer, defaultPayee } = useLocalSearchParams<{ id: string, defaultPayer?: string, defaultPayee?: string }>();
 
   const [amountStr, setAmountStr] = useState('');
-  const [payerId, setPayerId] = useState<string | null>(null); // fromMemberId
-  const [payeeId, setPayeeId] = useState<string | null>(null); // toMemberId
+  const [payerId, setPayerId] = useState<string | null>(defaultPayer || null); // fromMemberId
+  const [payeeId, setPayeeId] = useState<string | null>(defaultPayee || null); // toMemberId
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
 
   const { incomeCategories, expenseCategories } = useStore();
@@ -201,6 +201,7 @@ export default function SettleUpScreen() {
                 <Ionicons name="arrow-up-circle-outline" size={16} color={payerId === m.id ? '#FFF' : Colors.light.textSecondary} />
                 <Text style={[styles.memberChipText, payerId === m.id && styles.memberChipTextActive]}>
                   {m.isUser ? 'Me' : m.name}
+                  {m.isFund ? ' (Group Fund)' : ''}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -219,6 +220,7 @@ export default function SettleUpScreen() {
                 <Ionicons name="arrow-down-circle-outline" size={16} color={payeeId === m.id ? '#FFF' : Colors.light.textSecondary} />
                 <Text style={[styles.memberChipText, payeeId === m.id && styles.memberChipTextActive]}>
                   {m.isUser ? 'Me' : m.name}
+                  {m.isFund ? ' (Group Fund)' : ''}
                 </Text>
               </TouchableOpacity>
             ))}

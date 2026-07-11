@@ -1,15 +1,17 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, Image, ScrollView, Dimensions, Share, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Modal, Image, ScrollView, Dimensions, Share, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '@/db';
-import { groups, groupMembers, groupExpenses, groupExpenseParticipants, groupSettlements } from '@/db/schema';
+import { groups, groupMembers, groupExpenses, groupExpenseParticipants, groupSettlements, accounts } from '@/db/schema';
+import { addTransaction as addTxn } from '@/db/queries';
 import { eq, desc } from 'drizzle-orm';
 import { LinearGradient } from 'expo-linear-gradient';
 import { simplifyDebts } from '@/utils/debtSimplification';
 import { useStore } from '@/store/useStore';
+import * as Crypto from 'expo-crypto';
 
 const { width } = Dimensions.get('window');
 
@@ -26,6 +28,13 @@ export default function GroupScreen() {
   const [selectedExpense, setSelectedExpense] = React.useState<any>(null);
   const [activeTab, setActiveTab] = React.useState<'expenses' | 'activity'>('expenses');
   const [expandedSection, setExpandedSection] = React.useState<'suggested' | 'actual' | null>('actual');
+  
+  const [userAccounts, setUserAccounts] = React.useState<any[]>([]);
+  const [isContributeModalVisible, setIsContributeModalVisible] = React.useState(false);
+  const [isFundBreakdownModalVisible, setIsFundBreakdownModalVisible] = React.useState(false);
+  const [contributeAmountStr, setContributeAmountStr] = React.useState('');
+  const [contributePayerId, setContributePayerId] = React.useState<string | null>(null);
+  const [contributeAccountId, setContributeAccountId] = React.useState<string | null>(null);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -45,37 +54,70 @@ export default function GroupScreen() {
 
         const sData = await db.select().from(groupSettlements).where(eq(groupSettlements.groupId, id));
         setSettlements(sData);
+
+        const aData = await db.select().from(accounts);
+        setUserAccounts(aData);
       };
       fetchData();
     }, [id])
   );
 
-  // Calculate balances
-  // Net balance = paidShare - owedShare + settlementsPaid - settlementsReceived
-  // If positive, they are owed money. If negative, they owe money.
-  const balances = React.useMemo(() => {
-    if (!members || !allParticipants) return {};
+  React.useEffect(() => {
+    if (userAccounts.length > 0 && !contributeAccountId) {
+      setContributeAccountId(userAccounts[0].id);
+    }
+    if (members.length > 0 && !contributePayerId) {
+      const me = members.find(m => m.isUser);
+      if (me) setContributePayerId(me.id);
+    }
+  }, [userAccounts, members, isContributeModalVisible]);
+
+  const { humanBalances, fundBalances } = React.useMemo(() => {
+    if (!members || !allParticipants) return { humanBalances: {}, fundBalances: {} };
     
-    const bals: Record<string, number> = {};
-    members.forEach(m => bals[m.id] = 0);
-    
+    const hBals: Record<string, number> = {};
+    const fBals: Record<string, number> = {};
+    members.forEach(m => {
+      hBals[m.id] = 0;
+      fBals[m.id] = 0;
+    });
+
+    const fundMember = members.find(m => m.isFund);
+
+    // Track the primary payer for each expense
+    const expensePayers: Record<string, string> = {};
     allParticipants.forEach(p => {
-      if (bals[p.memberId] !== undefined) {
-        bals[p.memberId] += (p.paidShare - p.owedShare);
+       if (p.paidShare > 0) expensePayers[p.expenseId] = p.memberId;
+    });
+
+    allParticipants.forEach(p => {
+      const payerId = expensePayers[p.expenseId];
+      if (fundMember && payerId === fundMember.id) {
+        if (fBals[p.memberId] !== undefined) fBals[p.memberId] += (p.paidShare - p.owedShare);
+      } else {
+        if (hBals[p.memberId] !== undefined) hBals[p.memberId] += (p.paidShare - p.owedShare);
       }
     });
 
     settlements.forEach(s => {
-      if (bals[s.fromMemberId] !== undefined) bals[s.fromMemberId] += s.amount;
-      if (bals[s.toMemberId] !== undefined) bals[s.toMemberId] -= s.amount;
+      if (fundMember && (s.toMemberId === fundMember.id || s.fromMemberId === fundMember.id)) {
+        if (fBals[s.fromMemberId] !== undefined) fBals[s.fromMemberId] += s.amount;
+        if (fBals[s.toMemberId] !== undefined) fBals[s.toMemberId] -= s.amount;
+      } else {
+        if (hBals[s.fromMemberId] !== undefined) hBals[s.fromMemberId] += s.amount;
+        if (hBals[s.toMemberId] !== undefined) hBals[s.toMemberId] -= s.amount;
+      }
     });
     
-    return bals;
+    return { humanBalances: hBals, fundBalances: fBals };
   }, [members, allParticipants, settlements]);
 
   const suggestedRepayments = React.useMemo(() => {
-    return simplifyDebts(balances);
-  }, [balances]);
+    const instructions = simplifyDebts(humanBalances);
+    const fundMember = members?.find(m => m.isFund);
+    if (!fundMember) return instructions;
+    return instructions.filter(i => i.from !== fundMember.id && i.to !== fundMember.id);
+  }, [humanBalances, members]);
 
   const actualRepayments = React.useMemo(() => {
     if (!members || !allParticipants) return [];
@@ -167,11 +209,12 @@ export default function GroupScreen() {
         }
       });
     });
-
+    const fundMember = members?.find(m => m.isFund);
+    if (fundMember) {
+      return instructions.filter(i => i.from !== fundMember.id && i.to !== fundMember.id);
+    }
     return instructions;
   }, [members, allParticipants, expenses, settlements]);
-
-
 
   const activityLog = React.useMemo(() => {
     if (!group) return [];
@@ -191,11 +234,69 @@ export default function GroupScreen() {
     return logs.sort((a, b) => b.date - a.date);
   }, [group, expenses, settlements, members]);
 
+  const handleContribute = async () => {
+    const amt = parseFloat(contributeAmountStr);
+    if (!amt || amt <= 0) return Alert.alert('Error', 'Enter a valid amount.');
+    if (!contributePayerId) return Alert.alert('Error', 'Select a contributor.');
+    
+    const fundMember = members.find(m => m.isFund);
+    if (!fundMember) return Alert.alert('Error', 'Group Fund not found.');
+    
+    const payer = members.find(m => m.id === contributePayerId);
+    if (payer?.isUser && !contributeAccountId) {
+      return Alert.alert('Error', 'Select a personal account to deduct from.');
+    }
+    
+    const now = Date.now();
+    try {
+      await db.insert(groupSettlements).values({
+        id: Crypto.randomUUID(),
+        groupId: id,
+        fromMemberId: contributePayerId,
+        toMemberId: fundMember.id,
+        amount: amt,
+        date: now,
+      });
+
+      if (payer?.isUser && contributeAccountId) {
+        const tripCat = useStore.getState().expenseCategories.find(c => c.name === 'Trips & Travel') || 
+                        useStore.getState().expenseCategories.find(c => c.name === 'Entertainment');
+                        
+        await addTxn({
+          amount: amt,
+          type: 'expense',
+          categoryId: tripCat?.id || 'system',
+          accountId: contributeAccountId,
+          date: now,
+          note: `Contributed to Group Fund (${group.name})`,
+          groupId: id
+        });
+      }
+      
+      // refresh
+      const sData = await db.select().from(groupSettlements).where(eq(groupSettlements.groupId, id));
+      setSettlements(sData);
+      
+      await useStore.getState().loadData();
+      
+      setIsContributeModalVisible(false);
+      setContributeAmountStr('');
+    } catch (e) {
+      Alert.alert('Error', 'Failed to save contribution.');
+    }
+  };
+
   const handleShare = async () => {
     if (!group) return;
     try {
       let report = `🏕️ Group Report: ${group.name}\n\n`;
       
+      const fundMember = members.find(m => m.isFund);
+      if (fundMember) {
+        const fundBal = fundBalances[fundMember.id] || 0;
+        report += `Group Bank: $${Math.abs(fundBal).toFixed(2)} available\n\n`;
+      }
+
       if (expenses.length > 0) {
         report += `Expense Details:\n`;
         expenses.forEach(e => {
@@ -218,8 +319,8 @@ export default function GroupScreen() {
       report += `Total Expenses: $${totalExp.toFixed(2)}\n\n`;
       
       report += `Final Balances:\n`;
-      members.forEach(m => {
-        const bal = balances[m.id] || 0;
+      members.filter(m => !m.isFund).forEach(m => {
+        const bal = humanBalances[m.id] || 0;
         if (bal > 0.01) report += `- ${m.name}: +$${bal.toFixed(2)} (Gets back)\n`;
         else if (bal < -0.01) report += `- ${m.name}: -$${Math.abs(bal).toFixed(2)} (Owes)\n`;
         else report += `- ${m.name}: Settled up\n`;
@@ -249,7 +350,8 @@ export default function GroupScreen() {
     
     // Validate if archiving
     if (!group.isArchived) {
-      const hasDebts = Object.values(balances).some(b => Math.abs(b) > 0.01);
+      const hasDebts = Object.values(humanBalances).some(b => Math.abs(b) > 0.01) || 
+                       Object.values(fundBalances).some(b => Math.abs(b) > 0.01);
       if (hasDebts) {
         Alert.alert('Cannot Archive', 'All debts must be settled before archiving this group.');
         return;
@@ -307,6 +409,48 @@ export default function GroupScreen() {
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={() => (
           <View>
+            {/* Group Bank Section */}
+            {members?.find(m => m.isFund) && (() => {
+              const fundMember = members.find(m => m.isFund)!;
+              const fundBal = fundBalances[fundMember.id] || 0;
+              return (
+                <LinearGradient
+                  colors={['#10B98115', '#05966910']}
+                  style={[styles.balancesCard, { marginBottom: 24, borderWidth: 0, shadowColor: '#10B981', shadowOpacity: 0.1, shadowRadius: 10, elevation: 3 }]}
+                >
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={[styles.memberAvatar, { backgroundColor: '#10B98120' }]}>
+                        <Ionicons name="wallet" size={16} color="#10B981" />
+                      </View>
+                      <View>
+                        <Text style={{ fontSize: 16, fontWeight: '700', color: Colors.light.text }}>Group Bank</Text>
+                        <Text style={{ fontSize: 13, color: Colors.light.textSecondary }}>Available Balance</Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 24, fontWeight: '800', color: '#10B981' }}>
+                      ${Math.abs(fundBal).toFixed(2)}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity 
+                      style={{ flex: 1, backgroundColor: '#10B98115', paddingVertical: 10, borderRadius: 20, borderWidth: 1, borderColor: '#10B98130', alignItems: 'center' }}
+                      onPress={() => setIsFundBreakdownModalVisible(true)}
+                    >
+                      <Text style={{ color: '#059669', fontSize: 14, fontWeight: '700' }}>Breakdown</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={{ flex: 1, backgroundColor: '#10B981', paddingVertical: 10, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
+                      onPress={() => setIsContributeModalVisible(true)}
+                    >
+                      <Ionicons name="add" size={16} color="#FFF" />
+                      <Text style={{ color: '#FFF', fontSize: 14, fontWeight: '700' }}>Add</Text>
+                    </TouchableOpacity>
+                  </View>
+                </LinearGradient>
+              );
+            })()}
+
             {/* Balances Section */}
             <View style={styles.sectionHeaderWrap}>
               <Text style={styles.sectionTitle}>Group Balances</Text>
@@ -320,8 +464,8 @@ export default function GroupScreen() {
             </View>
             
             <View style={styles.balancesCard}>
-              {members?.map(m => {
-                const bal = balances[m.id] || 0;
+              {members?.filter(m => !m.isFund).map(m => {
+                const bal = humanBalances[m.id] || 0;
                 const isPositive = bal > 0.01;
                 const isNegative = bal < -0.01;
                 let statusColor: string = Colors.light.textSecondary;
@@ -543,6 +687,122 @@ export default function GroupScreen() {
         </SafeAreaView>
       </Modal>
 
+      {/* Contribute to Fund Modal */}
+      <Modal visible={isContributeModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsContributeModalVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: Colors.light.background }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Contribute to Fund</Text>
+            <TouchableOpacity onPress={() => setIsContributeModalVisible(false)}>
+              <Ionicons name="close" size={24} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={{ alignItems: 'center', marginBottom: 32 }}>
+              <View style={[styles.expenseIcon, { backgroundColor: '#10B98115', width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
+                <Ionicons name="wallet" size={32} color="#10B981" />
+              </View>
+              <Text style={{ fontSize: 16, color: Colors.light.textSecondary, marginBottom: 8 }}>Amount to Add</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={{ fontSize: 32, fontWeight: '700', color: Colors.light.text }}>$</Text>
+                <TextInput
+                  style={{ fontSize: 48, fontWeight: '800', color: Colors.light.text, minWidth: 100 }}
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  value={contributeAmountStr}
+                  onChangeText={setContributeAmountStr}
+                  autoFocus
+                />
+              </View>
+            </View>
+
+            <Text style={styles.modalSectionTitle}>Who is contributing?</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
+              {members.filter(m => !m.isFund).map(m => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[styles.memberChip, contributePayerId === m.id && styles.memberChipActive]}
+                  onPress={() => setContributePayerId(m.id)}
+                >
+                  <Ionicons name="person" size={16} color={contributePayerId === m.id ? '#FFF' : Colors.light.textSecondary} />
+                  <Text style={[styles.memberChipText, contributePayerId === m.id && styles.memberChipTextActive]}>
+                    {m.isUser ? 'Me' : m.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {members.find(m => m.id === contributePayerId)?.isUser && (
+              <View style={{ marginBottom: 24 }}>
+                <Text style={styles.modalSectionTitle}>Pay from (Personal Account)</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  {userAccounts.map(acc => (
+                    <TouchableOpacity
+                      key={acc.id}
+                      style={[styles.memberChip, contributeAccountId === acc.id && styles.memberChipActive]}
+                      onPress={() => setContributeAccountId(acc.id)}
+                    >
+                      <Ionicons name={acc.icon as any} size={16} color={contributeAccountId === acc.id ? '#FFF' : acc.color} />
+                      <Text style={[styles.memberChipText, contributeAccountId === acc.id && styles.memberChipTextActive]}>
+                        {acc.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            <TouchableOpacity 
+              style={[styles.saveBtn, { backgroundColor: '#10B981', paddingVertical: 16, alignItems: 'center', marginTop: 16 }]}
+              onPress={handleContribute}
+            >
+              <Text style={[styles.saveBtnText, { color: '#FFF', fontSize: 16 }]}>Add to Group Bank</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* Fund Breakdown Modal */}
+      <Modal visible={isFundBreakdownModalVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setIsFundBreakdownModalVisible(false)}>
+        <SafeAreaView style={{ flex: 1, backgroundColor: Colors.light.background }}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Fund Breakdown</Text>
+            <TouchableOpacity onPress={() => setIsFundBreakdownModalVisible(false)}>
+              <Ionicons name="close" size={24} color={Colors.light.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.modalContent}>
+            <View style={{ alignItems: 'center', marginBottom: 32 }}>
+              <View style={[styles.expenseIcon, { backgroundColor: '#10B98115', width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
+                <Ionicons name="wallet" size={32} color="#10B981" />
+              </View>
+              <Text style={{ fontSize: 16, color: Colors.light.textSecondary, marginBottom: 8 }}>Available Balance</Text>
+              <Text style={{ fontSize: 36, fontWeight: '800', color: '#10B981' }}>
+                ${Math.abs(fundBalances[members?.find(m => m.isFund)?.id || ''] || 0).toFixed(2)}
+              </Text>
+            </View>
+
+            <Text style={styles.modalSectionTitle}>Distributions</Text>
+            <View style={styles.breakdownCard}>
+              {members?.filter(m => !m.isFund).map(m => {
+                const bal = fundBalances[m.id] || 0;
+                if (Math.abs(bal) < 0.01) return null;
+                const getsBack = bal > 0;
+                return (
+                  <View key={m.id} style={styles.breakdownRow}>
+                    <Text style={styles.breakdownName}>{m.isUser ? 'Me' : m.name}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[getsBack ? styles.breakdownPaid : styles.breakdownOwed, { fontSize: 15 }]}>
+                        {getsBack ? 'Gets back' : 'Owes fund'}: ${Math.abs(bal).toFixed(2)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -659,4 +919,12 @@ const styles = StyleSheet.create({
   unarchiveBtn: { backgroundColor: '#EEF2FF' },
   archiveBtnText: { marginLeft: 8, fontSize: 15, fontWeight: '700', color: '#EF4444' },
   archiveHelp: { fontSize: 12, color: '#94A3B8', textAlign: 'center', paddingHorizontal: 20 },
+  
+  memberChip: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, marginRight: 12 },
+  memberChipActive: { backgroundColor: '#10B981', borderColor: '#10B981' },
+  memberChipText: { fontSize: 15, fontWeight: '600', color: Colors.light.text, marginLeft: 8 },
+  memberChipTextActive: { color: '#FFF' },
+  
+  saveBtn: { backgroundColor: '#6366F1', paddingVertical: 14, borderRadius: 16, alignItems: 'center', marginTop: 24, marginHorizontal: 20 },
+  saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

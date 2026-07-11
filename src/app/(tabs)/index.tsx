@@ -5,6 +5,7 @@ import { useStore } from "@/store/useStore";
 import { formatCurrency } from "@/utils/currency";
 import { Ionicons } from "@expo/vector-icons";
 import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { router } from "expo-router";
 import React, { useEffect, useMemo } from "react";
 import {
@@ -34,12 +35,11 @@ export default function DashboardScreen() {
   } = useStore();
 
   useEffect(() => {
-    // Patch to add is_archived column if it doesn't exist
-    // try {
-    //   db.run(sql`ALTER TABLE groups ADD COLUMN is_archived INTEGER DEFAULT 0`);
-    // } catch (e) {
-    //   console.log('Column already exists or error:', e);
-    // }
+    try {
+      db.run(sql`ALTER TABLE group_members ADD COLUMN is_fund INTEGER DEFAULT 0`);
+    } catch (e) {
+      console.log('Column is_fund already exists or error:', e);
+    }
 
     // Patch the icon in the database for users who already seeded
     try {

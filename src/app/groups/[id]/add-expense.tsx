@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '@/constants/theme';
 import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { db } from '@/db';
-import { groupMembers, groupExpenses, groupExpenseParticipants, accounts, groups } from '@/db/schema';
+import { groupMembers, groupExpenses, groupExpenseParticipants, accounts, groups, groupSettlements } from '@/db/schema';
 import { addTransaction as addTxn } from '@/db/queries';
 import { eq } from 'drizzle-orm';
 import * as Crypto from 'expo-crypto';
@@ -38,6 +38,7 @@ export default function AddGroupExpenseScreen() {
   const [members, setMembers] = React.useState<any[]>([]);
   const [userAccounts, setUserAccounts] = React.useState<any[]>([]);
   const [groupName, setGroupName] = React.useState<string>('Group');
+  const [fundBalance, setFundBalance] = React.useState<number>(0);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -47,6 +48,24 @@ export default function AddGroupExpenseScreen() {
 
         const mData = await db.select().from(groupMembers).where(eq(groupMembers.groupId, groupId));
         setMembers(mData);
+
+        const fundMember = mData.find(m => m.isFund);
+        if (fundMember) {
+          const pData = await db.select().from(groupExpenseParticipants);
+          const sData = await db.select().from(groupSettlements).where(eq(groupSettlements.groupId, groupId));
+          
+          let bal = 0;
+          pData.forEach(p => {
+            if (p.memberId === fundMember.id) {
+              bal += (p.paidShare - p.owedShare);
+            }
+          });
+          sData.forEach(s => {
+            if (s.fromMemberId === fundMember.id) bal += s.amount;
+            if (s.toMemberId === fundMember.id) bal -= s.amount;
+          });
+          setFundBalance(bal);
+        }
 
         const aData = await db.select().from(accounts);
         setUserAccounts(aData);
@@ -81,8 +100,9 @@ export default function AddGroupExpenseScreen() {
     const shares: Record<string, number> = {};
     
     if (splitType === 'equal') {
-      const splitAmount = totalAmount / members.length;
-      members.forEach(m => shares[m.id] = splitAmount);
+      const splitMembers = members.filter(m => !m.isFund); // Don't split owed shares to the fund itself
+      const splitAmount = totalAmount / (splitMembers.length || 1);
+      splitMembers.forEach(m => shares[m.id] = splitAmount);
     } else if (splitType === 'exact') {
       members.forEach(m => shares[m.id] = parseFloat(customShares[m.id]) || 0);
     } else if (splitType === 'percentage') {
@@ -297,18 +317,44 @@ export default function AddGroupExpenseScreen() {
             <Text style={styles.label}>Who Paid?</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-            {members?.map(m => (
-              <TouchableOpacity
-                key={m.id}
-                style={[styles.payerChip, payerId === m.id && styles.payerChipActive]}
-                onPress={() => setPayerId(m.id)}
-              >
-                <Ionicons name="person" size={16} color={payerId === m.id ? '#FFF' : Colors.light.textSecondary} />
-                <Text style={[styles.payerChipText, payerId === m.id && styles.payerChipTextActive]}>
-                  {m.isUser ? 'Me' : m.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {members?.slice().sort((a, b) => {
+              if (a.isUser) return -1;
+              if (b.isUser) return 1;
+              if (a.isFund) return -1;
+              if (b.isFund) return 1;
+              return 0;
+            }).map(m => {
+              const isFund = m.isFund;
+              const fundTooLow = isFund && Math.abs(fundBalance) < totalAmount;
+              
+              return (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[
+                    styles.payerChip, 
+                    payerId === m.id && styles.payerChipActive,
+                    fundTooLow && { opacity: 0.5 }
+                  ]}
+                  onPress={() => {
+                    if (fundTooLow) {
+                      Alert.alert('Fund Too Low', `The group fund only has $${Math.abs(fundBalance).toFixed(2)} available. Expand the fund or split the expense.`);
+                    } else {
+                      setPayerId(m.id);
+                    }
+                  }}
+                >
+                  <Ionicons name={isFund ? "wallet" : "person"} size={16} color={payerId === m.id ? '#FFF' : Colors.light.textSecondary} />
+                  <Text style={[styles.payerChipText, payerId === m.id && styles.payerChipTextActive]}>
+                    {m.isUser ? 'Me' : m.name}
+                  </Text>
+                  {isFund && (
+                    <Text style={[styles.payerChipText, { fontSize: 10, marginLeft: 4 }, payerId === m.id && styles.payerChipTextActive]}>
+                      (${Math.abs(fundBalance).toFixed(2)})
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {payerIsUser && (
@@ -332,53 +378,73 @@ export default function AddGroupExpenseScreen() {
             </View>
           )}
 
-          <View style={styles.sectionHeader}>
-            <Text style={styles.label}>Split Options</Text>
-          </View>
-          <View style={styles.splitTabs}>
-            <TouchableOpacity 
-              style={[styles.splitTab, splitType === 'equal' && styles.splitTabActive]}
-              onPress={() => setSplitType('equal')}
-            >
-              <Text style={[styles.splitTabText, splitType === 'equal' && styles.splitTabTextActive]}>Equally</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.splitTab, splitType === 'exact' && styles.splitTabActive]}
-              onPress={() => setSplitType('exact')}
-            >
-              <Text style={[styles.splitTabText, splitType === 'exact' && styles.splitTabTextActive]}>Exact</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.splitTab, splitType === 'percentage' && styles.splitTabActive]}
-              onPress={() => setSplitType('percentage')}
-            >
-              <Text style={[styles.splitTabText, splitType === 'percentage' && styles.splitTabTextActive]}>%</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.sharesList}>
-            {members?.map(m => (
-              <View key={m.id} style={styles.shareRow}>
-                <Text style={styles.shareName}>{m.isUser ? 'Me' : m.name}</Text>
-                
-                {splitType === 'equal' ? (
-                  <Text style={styles.shareAmount}>${calculatedShares[m.id]?.toFixed(2) || '0.00'}</Text>
-                ) : (
-                  <View style={styles.shareInputWrapper}>
-                    {splitType === 'exact' && <Text style={styles.shareInputPrefix}>$</Text>}
-                    <TextInput
-                      style={styles.shareInput}
-                      keyboardType="decimal-pad"
-                      placeholder="0"
-                      value={customShares[m.id] || ''}
-                      onChangeText={(val) => setCustomShares({...customShares, [m.id]: val})}
-                    />
-                    {splitType === 'percentage' && <Text style={styles.shareInputSuffix}>%</Text>}
-                  </View>
-                )}
+          {payerId && members?.find(m => m.id === payerId)?.isFund && splitType === 'equal' ? (
+            <View style={{ backgroundColor: '#F8FAFC', padding: 16, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                <Ionicons name="information-circle" size={20} color="#10B981" style={{ marginRight: 8 }} />
+                <Text style={{ fontSize: 15, fontWeight: '600', color: Colors.light.text }}>Deducting from Group Bank</Text>
               </View>
-            ))}
-          </View>
+              <Text style={{ fontSize: 14, color: Colors.light.textSecondary, lineHeight: 20 }}>
+                This expense will be deducted directly from the Group Fund. It is automatically split equally in the background to track usage, but you won't see personal debts for it.
+              </Text>
+              <TouchableOpacity onPress={() => setSplitType('exact')} style={{ marginTop: 12 }}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#6366F1' }}>Adjust Split Details</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.label}>Split Options</Text>
+              </View>
+              <View style={styles.splitTabs}>
+                <TouchableOpacity 
+                  style={[styles.splitTab, splitType === 'equal' && styles.splitTabActive]}
+                  onPress={() => setSplitType('equal')}
+                >
+                  <Text style={[styles.splitTabText, splitType === 'equal' && styles.splitTabTextActive]}>Equally</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.splitTab, splitType === 'exact' && styles.splitTabActive]}
+                  onPress={() => setSplitType('exact')}
+                >
+                  <Text style={[styles.splitTabText, splitType === 'exact' && styles.splitTabTextActive]}>Exact</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.splitTab, splitType === 'percentage' && styles.splitTabActive]}
+                  onPress={() => setSplitType('percentage')}
+                >
+                  <Text style={[styles.splitTabText, splitType === 'percentage' && styles.splitTabTextActive]}>%</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.sharesList}>
+                {members?.map(m => {
+                  if (m.isFund) return null; // Don't show fund in shares list
+                  return (
+                    <View key={m.id} style={styles.shareRow}>
+                      <Text style={styles.shareName}>{m.isUser ? 'Me' : m.name}</Text>
+                      
+                      {splitType === 'equal' ? (
+                        <Text style={styles.shareAmount}>${calculatedShares[m.id]?.toFixed(2) || '0.00'}</Text>
+                      ) : (
+                        <View style={styles.shareInputWrapper}>
+                          {splitType === 'exact' && <Text style={styles.shareInputPrefix}>$</Text>}
+                          <TextInput
+                            style={styles.shareInput}
+                            keyboardType="decimal-pad"
+                            placeholder="0"
+                            value={customShares[m.id] || ''}
+                            onChangeText={(val) => setCustomShares({...customShares, [m.id]: val})}
+                          />
+                          {splitType === 'percentage' && <Text style={styles.shareInputSuffix}>%</Text>}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           <View style={{ height: 100 }} />
         </ScrollView>
