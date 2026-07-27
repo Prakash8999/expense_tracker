@@ -11,13 +11,14 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "versionCode": 2,
       "adaptiveIcon": {
         "backgroundColor": "#6366F1",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.cipher_git.Slicent"
+      "package": "com.slicent.app"
     },
     "web": {
       "output": "static",

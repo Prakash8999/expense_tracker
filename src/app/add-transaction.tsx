@@ -174,40 +174,69 @@ export default function AddTransactionScreen() {
     onClose,
     onSelect,
     excludeId,
-  }: any) => (
-    <Modal visible={visible} animationType="slide" transparent>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Account</Text>
-            <TouchableOpacity onPress={onClose}>
-              <Ionicons name="close" size={24} color={Colors.light.text} />
-            </TouchableOpacity>
+  }: any) => {
+    const availableAccounts = accounts.filter((a: any) => a.id !== excludeId);
+
+    return (
+      <Modal visible={visible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Account</Text>
+              <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
+                <TouchableOpacity onPress={() => { onClose(); router.push('/add-account'); }}>
+                  <Ionicons name="add" size={26} color={Colors.light.tint || "#42A5F5"} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={onClose}>
+                  <Ionicons name="close" size={26} color={Colors.light.text} />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {availableAccounts.length === 0 ? (
+              <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingHorizontal: 20 }}>
+                <Ionicons name="wallet-outline" size={56} color="#CBD5E1" style={{ marginBottom: 16 }} />
+                <Text style={{ fontSize: 16, color: Colors.light.text, textAlign: "center", fontWeight: "600", marginBottom: 8 }}>
+                  No accounts found
+                </Text>
+                <Text style={{ fontSize: 14, color: Colors.light.textSecondary, textAlign: "center", marginBottom: 24, lineHeight: 20 }}>
+                  You currently don't have any accounts available. Please create one to continue.
+                </Text>
+                <TouchableOpacity 
+                  style={{ backgroundColor: Colors.light.tint || "#42A5F5", paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 8 }}
+                  onPress={() => { onClose(); router.push('/add-account'); }}
+                >
+                  <Ionicons name="add-circle-outline" size={20} color="#FFF" />
+                  <Text style={{ color: "#FFF", fontWeight: "600", fontSize: 15 }}>Create Account</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {availableAccounts.map((acc: any) => (
+                  <TouchableOpacity
+                    key={acc.id}
+                    style={styles.accountOption}
+                    onPress={() => {
+                      onSelect(acc.id);
+                      onClose();
+                    }}
+                  >
+                    <Ionicons name={acc.icon as any} size={22} color={acc.color} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.accountOptionName}>{acc.name}</Text>
+                      <Text style={styles.accountOptionBal}>
+                        {formatCurrency(acc.balance, currency.code)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
           </View>
-          {accounts
-            .filter((a: any) => a.id !== excludeId)
-            .map((acc: any) => (
-              <TouchableOpacity
-                key={acc.id}
-                style={styles.accountOption}
-                onPress={() => {
-                  onSelect(acc.id);
-                  onClose();
-                }}
-              >
-                <Ionicons name={acc.icon as any} size={22} color={acc.color} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.accountOptionName}>{acc.name}</Text>
-                  <Text style={styles.accountOptionBal}>
-                    {formatCurrency(acc.balance, currency.code)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
         </View>
-      </View>
-    </Modal>
-  );
+      </Modal>
+    );
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -587,6 +616,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     padding: 20,
     maxHeight: "60%",
+    minHeight: 300,
   },
   modalHeader: {
     flexDirection: "row",
