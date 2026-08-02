@@ -17,6 +17,7 @@ export default function DocumentVaultScreen() {
   const [type, setType] = useState('receipt');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [expiryDays, setExpiryDays] = useState('');
+  const [selectedDoc, setSelectedDoc] = useState<any>(null);
 
   const handlePickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -103,7 +104,7 @@ export default function DocumentVaultScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.grid}>
           {documents.map(doc => (
-            <TouchableOpacity key={doc.id} style={styles.docCard} onLongPress={() => handleDelete(doc.id)}>
+            <TouchableOpacity key={doc.id} style={styles.docCard} onPress={() => setSelectedDoc(doc)}>
               <View style={styles.imageContainer}>
                 {doc.imagePath ? (
                   <Image source={{ uri: doc.imagePath }} style={styles.docImage} />
@@ -130,6 +131,36 @@ export default function DocumentVaultScreen() {
         <View style={{ height: 100 }} />
       </ScrollView>
 
+      {/* Image Viewer Modal */}
+      <Modal visible={!!selectedDoc} transparent animationType="fade" onRequestClose={() => setSelectedDoc(null)}>
+        <View style={styles.viewerOverlay}>
+          <SafeAreaView edges={['top']} style={styles.viewerHeaderSafeArea}>
+            <View style={styles.viewerHeader}>
+              <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.viewerHeaderBtn}>
+                <Ionicons name="close" size={24} color="#FFF" />
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => {
+                  const id = selectedDoc?.id;
+                  setSelectedDoc(null);
+                  if (id) handleDelete(id);
+                }} 
+                style={styles.viewerHeaderBtn}
+              >
+                <Ionicons name="trash-outline" size={24} color="#EF5350" />
+              </TouchableOpacity>
+            </View>
+          </SafeAreaView>
+          {selectedDoc?.imagePath ? (
+            <Image source={{ uri: selectedDoc.imagePath }} style={styles.viewerImage} resizeMode="contain" />
+          ) : (
+            <View style={styles.viewerPlaceholder}>
+               <Ionicons name="document-text" size={64} color="#CBD5E1" />
+               <Text style={styles.viewerPlaceholderText}>No image attached</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
+
       {/* Add Document Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -155,14 +186,16 @@ export default function DocumentVaultScreen() {
 
               <TextInput 
                 style={styles.input} 
-                placeholder="Title (e.g., MacBook Receipt)" 
+                placeholder="Title (e.g., MacBook Receipt)"
+                placeholderTextColor="#94A3B8"
                 value={title} 
                 onChangeText={setTitle} 
               />
               
               <TextInput 
                 style={styles.input} 
-                placeholder="Warranty length in days (Optional)" 
+                placeholder="Warranty length in days (Optional)"
+                placeholderTextColor="#94A3B8"
                 keyboardType="numeric"
                 value={expiryDays} 
                 onChangeText={setExpiryDays} 
@@ -212,4 +245,12 @@ const styles = StyleSheet.create({
   
   saveBtn: { backgroundColor: '#6366F1', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 10 },
   saveBtnText: { fontSize: 16, fontWeight: '700', color: '#FFF' },
+  
+  viewerOverlay: { flex: 1, backgroundColor: '#000', justifyContent: 'center', alignItems: 'center' },
+  viewerHeaderSafeArea: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  viewerHeader: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 10 },
+  viewerHeaderBtn: { padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
+  viewerImage: { width: '100%', height: '100%' },
+  viewerPlaceholder: { alignItems: 'center', justifyContent: 'center' },
+  viewerPlaceholderText: { color: '#CBD5E1', marginTop: 12, fontSize: 16 },
 });

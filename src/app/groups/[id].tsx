@@ -27,7 +27,8 @@ export default function GroupScreen() {
   const [settlements, setSettlements] = React.useState<any[]>([]);
   const [selectedExpense, setSelectedExpense] = React.useState<any>(null);
   const [activeTab, setActiveTab] = React.useState<'expenses' | 'activity'>('expenses');
-  const [expandedSection, setExpandedSection] = React.useState<'suggested' | 'actual' | null>('actual');
+  const [isSuggestedExpanded, setIsSuggestedExpanded] = React.useState(true);
+  const [isActualExpanded, setIsActualExpanded] = React.useState(false);
   
   const [userAccounts, setUserAccounts] = React.useState<any[]>([]);
   const [isContributeModalVisible, setIsContributeModalVisible] = React.useState(false);
@@ -231,7 +232,12 @@ export default function GroupScreen() {
       logs.push({ id: `set-${s.id}`, type: 'settlement', date: s.date, text: `${fromName} paid ${toName} $${s.amount.toFixed(2)}` });
     });
 
-    return logs.sort((a, b) => b.date - a.date);
+    return logs.sort((a, b) => {
+      if (b.date !== a.date) return b.date - a.date;
+      if (a.type === 'create') return 1;
+      if (b.type === 'create') return -1;
+      return 0;
+    });
   }, [group, expenses, settlements, members]);
 
   const handleContribute = async () => {
@@ -495,12 +501,12 @@ export default function GroupScreen() {
               <View style={{ marginTop: 24 }}>
                 <TouchableOpacity 
                   style={styles.sectionHeaderWrap} 
-                  onPress={() => setExpandedSection(expandedSection === 'suggested' ? null : 'suggested')}
+                  onPress={() => setIsSuggestedExpanded(!isSuggestedExpanded)}
                 >
                   <Text style={styles.sectionTitle}>Suggested Repayments (Minimal)</Text>
-                  <Ionicons name={expandedSection === 'suggested' ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
+                  <Ionicons name={isSuggestedExpanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
                 </TouchableOpacity>
-                {expandedSection === 'suggested' && (
+                {isSuggestedExpanded && (
                   <View style={styles.balancesCard}>
                     {suggestedRepayments.map((rep, idx) => {
                       const fromMember = members.find(m => m.id === rep.from);
@@ -526,12 +532,12 @@ export default function GroupScreen() {
               <View style={{ marginTop: 16 }}>
                 <TouchableOpacity 
                   style={styles.sectionHeaderWrap} 
-                  onPress={() => setExpandedSection(expandedSection === 'actual' ? null : 'actual')}
+                  onPress={() => setIsActualExpanded(!isActualExpanded)}
                 >
                   <Text style={styles.sectionTitle}>Actual Repayments (Exact)</Text>
-                  <Ionicons name={expandedSection === 'actual' ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
+                  <Ionicons name={isActualExpanded ? "chevron-up" : "chevron-down"} size={20} color={Colors.light.textSecondary} />
                 </TouchableOpacity>
-                {expandedSection === 'actual' && (
+                {isActualExpanded && (
                   <View style={styles.balancesCard}>
                     {actualRepayments.map((rep, idx) => {
                       const fromMember = members.find(m => m.id === rep.from);
@@ -597,7 +603,7 @@ export default function GroupScreen() {
             </View>
           );
         }}
-        ListFooterComponent={() => (
+        ListFooterComponent={() => activeTab === 'activity' ? (
           <View style={styles.footerSection}>
             <TouchableOpacity 
               style={[styles.archiveBtn, group.isArchived && styles.unarchiveBtn]}
@@ -612,7 +618,7 @@ export default function GroupScreen() {
               {group.isArchived ? 'This group is archived.' : 'If the group trip is over you can archive it, but all balances must be settled first.'}
             </Text>
           </View>
-        )}
+        ) : <View style={{ height: 100 }} />}
       />
 
       <TouchableOpacity 
@@ -656,20 +662,30 @@ export default function GroupScreen() {
 
                 <Text style={styles.modalSectionTitle}>Split Breakdown</Text>
                 <View style={styles.breakdownCard}>
-                  {members.map(m => {
-                    const participation = allParticipants.find(p => p.expenseId === selectedExpense.id && p.memberId === m.id);
-                    if (!participation || (participation.paidShare === 0 && participation.owedShare === 0)) return null;
+                  {(() => {
+                    const fundMember = members.find(m => m.isFund);
+                    const isFundExpense = fundMember && allParticipants.some(p => p.expenseId === selectedExpense.id && p.memberId === fundMember.id && p.paidShare > 0);
+                    
+                    return members.map(m => {
+                      const participation = allParticipants.find(p => p.expenseId === selectedExpense.id && p.memberId === m.id);
+                      if (!participation || (participation.paidShare === 0 && participation.owedShare === 0)) return null;
 
-                    return (
-                      <View key={m.id} style={styles.breakdownRow}>
-                        <Text style={styles.breakdownName}>{m.isUser ? 'Me' : m.name}</Text>
-                        <View style={{ alignItems: 'flex-end' }}>
-                          {participation.paidShare > 0 && <Text style={styles.breakdownPaid}>Paid: ${participation.paidShare.toFixed(2)}</Text>}
-                          {participation.owedShare > 0 && <Text style={styles.breakdownOwed}>{participation.paidShare > 0 ? 'Share:' : 'Owed:'} ${participation.owedShare.toFixed(2)}</Text>}
+                      // Ghost Fund approach: completely hide the internal splits for human members if paid by the fund.
+                      if (isFundExpense && !m.isFund) return null;
+
+                      let label = participation.paidShare > 0 ? 'Share:' : 'Owed:';
+
+                      return (
+                        <View key={m.id} style={styles.breakdownRow}>
+                          <Text style={styles.breakdownName}>{m.isUser ? 'Me' : m.name}</Text>
+                          <View style={{ alignItems: 'flex-end' }}>
+                            {participation.paidShare > 0 && <Text style={styles.breakdownPaid}>Paid: ${participation.paidShare.toFixed(2)}</Text>}
+                            {participation.owedShare > 0 && <Text style={styles.breakdownOwed}>{label} ${participation.owedShare.toFixed(2)}</Text>}
+                          </View>
                         </View>
-                      </View>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </View>
 
                 {selectedExpense.receiptImage && (

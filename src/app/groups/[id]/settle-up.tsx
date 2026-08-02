@@ -192,7 +192,7 @@ export default function SettleUpScreen() {
             <Text style={styles.label}>Who is paying?</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-            {members?.map(m => (
+            {members?.filter(m => !m.isFund).map(m => (
               <TouchableOpacity
                 key={m.id}
                 style={[styles.memberChip, payerId === m.id && styles.memberChipActive]}
@@ -201,7 +201,6 @@ export default function SettleUpScreen() {
                 <Ionicons name="arrow-up-circle-outline" size={16} color={payerId === m.id ? '#FFF' : Colors.light.textSecondary} />
                 <Text style={[styles.memberChipText, payerId === m.id && styles.memberChipTextActive]}>
                   {m.isUser ? 'Me' : m.name}
-                  {m.isFund ? ' (Group Fund)' : ''}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -211,7 +210,7 @@ export default function SettleUpScreen() {
             <Text style={styles.label}>Who is receiving?</Text>
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 24 }}>
-            {members?.map(m => (
+            {members?.filter(m => !m.isFund).map(m => (
               <TouchableOpacity
                 key={m.id}
                 style={[styles.memberChip, payeeId === m.id && styles.memberChipActive]}
@@ -220,7 +219,6 @@ export default function SettleUpScreen() {
                 <Ionicons name="arrow-down-circle-outline" size={16} color={payeeId === m.id ? '#FFF' : Colors.light.textSecondary} />
                 <Text style={[styles.memberChipText, payeeId === m.id && styles.memberChipTextActive]}>
                   {m.isUser ? 'Me' : m.name}
-                  {m.isFund ? ' (Group Fund)' : ''}
                 </Text>
               </TouchableOpacity>
             ))}

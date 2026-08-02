@@ -783,7 +783,6 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     justifyContent: "center",
     alignItems: "center",
-    ...Shadows.sm,
   },
   quickActionText: {
     fontSize: 12,

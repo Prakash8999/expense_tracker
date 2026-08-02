@@ -237,9 +237,14 @@ export default function LedgerScreen() {
                   {getAcc(txn.accountId)?.name || ''}{txn.type === 'transfer' && txn.toAccountId ? ` → ${getAcc(txn.toAccountId)?.name}` : ''}
                 </Text>
               </View>
-              <Text style={[styles.txnAmount, { color: txn.type === 'income' ? '#66BB6A' : txn.type === 'transfer' ? '#42A5F5' : '#EF5350' }]}>
-                {txn.type === 'income' ? '+' : (txn.type === 'expense' || (txn.type === 'transfer' && !txn.toAccountId)) ? '-' : ''}{formatCurrency(txn.amount, currency.code)}
-              </Text>
+              <View style={styles.txnRight}>
+                <Text style={[styles.txnAmount, { color: txn.type === 'income' ? '#66BB6A' : txn.type === 'transfer' ? '#42A5F5' : '#EF5350' }]}>
+                  {txn.type === 'income' ? '+' : (txn.type === 'expense' || (txn.type === 'transfer' && !txn.toAccountId)) ? '-' : ''}{formatCurrency(txn.amount, currency.code)}
+                </Text>
+                <Text style={styles.txnTime}>
+                  {new Date(txn.date).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })}
+                </Text>
+              </View>
             </View>
           );
         }}
@@ -322,7 +327,9 @@ const styles = StyleSheet.create({
   txnInfo: { flex: 1 },
   txnName: { fontSize: 15, fontFamily: FontFamily.semiBold, color: Colors.light.text },
   txnSubtext: { fontSize: 12, fontFamily: FontFamily.medium, color: Colors.light.textTertiary, marginTop: 3 },
+  txnRight: { alignItems: 'flex-end' },
   txnAmount: { fontSize: 16, fontFamily: FontFamily.bold },
+  txnTime: { fontSize: 11, fontFamily: FontFamily.medium, color: Colors.light.textTertiary, marginTop: 2 },
 
   emptyState: { alignItems: 'center', paddingVertical: 60 },
   emptyText: { fontSize: 16, fontFamily: FontFamily.semiBold, color: Colors.light.textTertiary, marginTop: 16 },
