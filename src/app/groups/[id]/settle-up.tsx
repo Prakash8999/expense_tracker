@@ -138,7 +138,8 @@ export default function SettleUpScreen() {
           });
         } else if (payerIsUser) {
           // If you are paying someone back -> Expense (Previous bill)
-          const tripCat = expenseCategories.find(c => c.name === 'Trips & Travel');
+          const tripCat = expenseCategories.find(c => c.name === 'Group Contribution') ||
+                          expenseCategories.find(c => c.name === 'Entertainment');
           await addTxn({
             accountId: selectedAccountId,
             categoryId: tripCat?.id || undefined,

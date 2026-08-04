@@ -147,7 +147,7 @@ export default function NewGroupScreen() {
         }
 
         if (meContrib > 0 && selectedAccountId) {
-          const tripCat = useStore.getState().expenseCategories.find(c => c.name === 'Trips & Travel') || 
+          const tripCat = useStore.getState().expenseCategories.find(c => c.name === 'Group Contribution') || 
                           useStore.getState().expenseCategories.find(c => c.name === 'Entertainment');
           
           await addTxn({

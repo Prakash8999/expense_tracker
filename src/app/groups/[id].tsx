@@ -265,7 +265,7 @@ export default function GroupScreen() {
       });
 
       if (payer?.isUser && contributeAccountId) {
-        const tripCat = useStore.getState().expenseCategories.find(c => c.name === 'Trips & Travel') || 
+        const tripCat = useStore.getState().expenseCategories.find(c => c.name === 'Group Contribution') || 
                         useStore.getState().expenseCategories.find(c => c.name === 'Entertainment');
                         
         await addTxn({
