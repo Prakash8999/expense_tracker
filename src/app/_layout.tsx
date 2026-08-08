@@ -37,6 +37,8 @@ export default function RootLayout() {
   const loadData = useStore((s) => s.loadData);
   const isInitialized = useStore((s) => s.isInitialized);
 
+  const isLoading = useStore((s) => s.isLoading);
+
   const [fontsLoaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
@@ -52,17 +54,18 @@ export default function RootLayout() {
   }, [isReady]);
 
   useEffect(() => {
-    if (fontsLoaded && isInitialized) {
+    // Only hide splash after fonts loaded, initialization done, AND data fully loaded
+    if (fontsLoaded && isInitialized && !isLoading) {
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, isInitialized]);
+  }, [fontsLoaded, isInitialized, isLoading]);
 
-  if (!isReady || !isInitialized || !fontsLoaded) {
+  if (!isReady || !isInitialized || !fontsLoaded || isLoading) {
     return (
       <SafeAreaProvider>
         <View style={styles.loadingContainer}>
           <View style={styles.loadingIconWrap}>
-            <Text style={styles.loadingEmoji}>💰</Text>
+            <Text style={styles.loadingEmoji}>📋</Text>
           </View>
           <ActivityIndicator size="large" color={Colors.light.tint} style={{ marginTop: 24 }} />
           <Text style={styles.loadingText}>Setting up your finances…</Text>

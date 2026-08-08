@@ -106,10 +106,7 @@ export function SetupModal() {
                   )}
                 />
 
-                <View style={styles.footer}>
-                  <TouchableOpacity style={styles.skipBtn} onPress={handleSkip}>
-                    <Text style={styles.skipText}>Skip</Text>
-                  </TouchableOpacity>
+                <View style={[styles.footer, { justifyContent: 'flex-end' }]}>
                   <TouchableOpacity style={styles.primaryBtn} onPress={handleCurrencyNext}>
                     <Text style={styles.primaryBtnText}>Continue</Text>
                   </TouchableOpacity>

@@ -34,8 +34,6 @@ export default function DashboardScreen() {
     accounts,
     transactions,
     currency,
-    isLoading,
-    loadData,
     categories,
     plannedPayments,
     debts,
@@ -61,8 +59,6 @@ export default function DashboardScreen() {
     } catch (e) {
       console.log("Failed to update category icon:", e);
     }
-
-    loadData();
   }, []);
 
   const totalBalance = useMemo(
@@ -216,6 +212,7 @@ export default function DashboardScreen() {
     if (!txn.categoryId) return null;
     return categories.find((c: any) => c.id === txn.categoryId);
   };
+
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top"]}>
