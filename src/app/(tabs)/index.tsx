@@ -24,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { SetupModal } from "@/components/SetupModal";
 
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = width - 40;
@@ -678,13 +679,14 @@ export default function DashboardScreen() {
         <View style={{ height: 60 }} />
       </ScrollView>
 
-      {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => router.push("/add-transaction")}
       >
         <Ionicons name="add" size={28} color="#FFF" />
       </TouchableOpacity>
+
+      <SetupModal />
     </SafeAreaView>
   );
 }

@@ -77,7 +77,6 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider value={LightTheme}>
         <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="onboarding" />
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="add-transaction" options={{ presentation: 'modal' }} />
           <Stack.Screen name="manage-categories" options={{ presentation: 'modal' }} />

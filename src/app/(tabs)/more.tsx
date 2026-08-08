@@ -200,7 +200,7 @@ export default function MoreScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appName}>💰 FinTrack</Text>
+          <Text style={styles.appName}>Slicent</Text>
           <Text style={styles.appVersion}>Version 1.0.0 • Offline First</Text>
           <Text style={styles.appCurrency}>
             Currency: {currency.name} ({currency.symbol})
