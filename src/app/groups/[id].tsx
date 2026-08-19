@@ -325,20 +325,8 @@ export default function GroupScreen() {
     });
   }, [group, expenses, settlements, members]);
 
-  const handleContribute = async () => {
-    const amt = parseFloat(contributeAmountStr);
-    if (!amt || amt <= 0) return Alert.alert("Error", "Enter a valid amount.");
-    if (!contributePayerId)
-      return Alert.alert("Error", "Select a contributor.");
-
+  const executeContribute = async (amt: number, payer: any) => {
     const fundMember = members.find((m) => m.isFund);
-    if (!fundMember) return Alert.alert("Error", "Group Fund not found.");
-
-    const payer = members.find((m) => m.id === contributePayerId);
-    if (payer?.isUser && !contributeAccountId) {
-      return Alert.alert("Error", "Select a personal account to deduct from.");
-    }
-
     const now = Date.now();
     try {
       await db.insert(groupSettlements).values({
@@ -384,6 +372,45 @@ export default function GroupScreen() {
     } catch (e) {
       Alert.alert("Error", "Failed to save contribution.");
     }
+  };
+
+  const handleContribute = async () => {
+    const amt = parseFloat(contributeAmountStr);
+    if (!amt || amt <= 0) return Alert.alert("Error", "Enter a valid amount.");
+    if (!contributePayerId)
+      return Alert.alert("Error", "Select a contributor.");
+
+    const fundMember = members.find((m) => m.isFund);
+    if (!fundMember) return Alert.alert("Error", "Group Fund not found.");
+
+    const payer = members.find((m) => m.id === contributePayerId);
+    if (payer?.isUser && !contributeAccountId) {
+      return Alert.alert("Error", "Select a personal account to deduct from.");
+    }
+
+    if (payer?.isUser && contributeAccountId) {
+      const selectedAccount = userAccounts.find(a => a.id === contributeAccountId);
+      if (selectedAccount && selectedAccount.balance < amt) {
+        Alert.alert(
+          "Insufficient Funds",
+          `This contribution will bring your account balance to $${(selectedAccount.balance - amt).toFixed(2)}. Are you sure you want to proceed?`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel"
+            },
+            {
+              text: "Proceed",
+              style: "destructive",
+              onPress: () => executeContribute(amt, payer)
+            }
+          ]
+        );
+        return;
+      }
+    }
+
+    await executeContribute(amt, payer);
   };
 
   const handleShare = async () => {

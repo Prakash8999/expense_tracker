@@ -56,6 +56,28 @@ export default function AddTransactionScreen() {
     (c: any) => c.id === selectedCategory?.parentId,
   );
 
+  const executeSave = async () => {
+    const parsedAmount = parseFloat(amount);
+    try {
+      await addTxn({
+        accountId: selectedAccountId,
+        categoryId: type !== "transfer" ? selectedCategoryId : undefined,
+        amount: parsedAmount,
+        type,
+        note: note.trim() || undefined,
+        toAccountId: type === "transfer" ? toAccountId : undefined,
+      });
+      await loadData();
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        router.replace('/');
+      }
+    } catch (e: any) {
+      Alert.alert("Error", e.message);
+    }
+  };
+
   const handleSave = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
@@ -78,20 +100,28 @@ export default function AddTransactionScreen() {
       return;
     }
 
-    try {
-      await addTxn({
-        accountId: selectedAccountId,
-        categoryId: type !== "transfer" ? selectedCategoryId : undefined,
-        amount: parsedAmount,
-        type,
-        note: note.trim() || undefined,
-        toAccountId: type === "transfer" ? toAccountId : undefined,
-      });
-      await loadData();
-      router.back();
-    } catch (e: any) {
-      Alert.alert("Error", e.message);
+    if (type === "expense" || type === "transfer") {
+      if (selectedAccount && selectedAccount.balance < parsedAmount) {
+        Alert.alert(
+          "Insufficient Funds",
+          `This transaction will bring your account balance to ${formatCurrency(selectedAccount.balance - parsedAmount, currency.code)}. Are you sure you want to proceed?`,
+          [
+            {
+              text: "Cancel",
+              style: "cancel",
+            },
+            {
+              text: "Proceed",
+              style: "destructive",
+              onPress: executeSave,
+            },
+          ]
+        );
+        return;
+      }
     }
+
+    await executeSave();
   };
 
   const parentCategories = currentCategories.filter((c: any) => !c.parentId);
@@ -246,7 +276,13 @@ export default function AddTransactionScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/');
+            }
+          }}>
             <Ionicons name="close" size={28} color={Colors.light.text} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Add Transaction</Text>
